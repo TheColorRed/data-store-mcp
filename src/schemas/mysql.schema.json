@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "mysql",
+      "description": "A MySQL database connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "The hostname of the database you are connecting to. (Default: localhost)",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "description": "The port number to connect to. (Default: 3306)",
+          "default": 3306
+        },
+        "localAddress": {
+          "type": "string",
+          "description": "The source IP address to use for TCP connection. (Optional)"
+        },
+        "socketPath": {
+          "type": "string",
+          "description": "The path to a unix domain socket to connect to. When used host and port are ignored."
+        },
+        "user": {
+          "type": "string",
+          "description": "The MySQL user to authenticate as."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password of that MySQL user."
+        },
+        "database": {
+          "type": "string",
+          "description": "Name of the database to use for this connection (Optional)."
+        },
+        "charset": {
+          "type": "string",
+          "description": "The charset for the connection. This is called 'collation' in the SQL-level of MySQL (like utf8_general_ci). If a SQL-level charset is specified (like utf8mb4) then the default collation for that charset is used. (Default: 'UTF8_GENERAL_CI')",
+          "default": "UTF8_GENERAL_CI"
+        },
+        "timezone": {
+          "type": "string",
+          "description": "The timezone configured on the MySQL server. This is used to type cast server date/time values to JavaScript Date object and vice versa. This can be 'local', 'Z', or an offset in the form +HH:MM or -HH:MM. (Default: 'local')",
+          "default": "local"
+        },
+        "connectTimeout": {
+          "type": "integer",
+          "description": "The milliseconds before a timeout occurs during the initial connection to the MySQL server. (Default: 10000)",
+          "default": 10000
+        },
+        "stringifyObjects": {
+          "type": "boolean",
+          "description": "Stringify objects instead of converting to values. (Default: false)",
+          "default": false
+        },
+        "insecureAuth": {
+          "type": "boolean",
+          "description": "Allow connecting to MySQL instances that ask for the old (insecure) authentication method. (Default: false)",
+          "default": false
+        },
+        "typeCast": {
+          "type": "boolean",
+          "description": "Determines if column values should be converted to native JavaScript types. (Default: true)",
+          "default": true
+        },
+        "queryFormat": {
+          "description": "A custom query format function. See Custom format."
+        },
+        "supportBigNumbers": {
+          "type": "boolean",
+          "description": "When dealing with big numbers (BIGINT and DECIMAL columns) in the database, you should enable this option (Default: false).",
+          "default": false
+        },
+        "bigNumberStrings": {
+          "type": "boolean",
+          "description": "Enabling both supportBigNumbers and bigNumberStrings forces big numbers (BIGINT and DECIMAL columns) to be always returned as JavaScript String objects (Default: false). Enabling supportBigNumbers but leaving bigNumberStrings disabled will return big numbers as String objects only when they cannot be accurately represented with JavaScript Number objects (which happens when they exceed the [-2^53, +2^53] range), otherwise they will be returned as Number objects. This option is ignored if supportBigNumbers is disabled.",
+          "default": false
+        },
+        "dateStrings": {
+          "description": "Force date types (TIMESTAMP, DATETIME, DATE) to be returned as strings rather than inflated into JavaScript Date objects. Can be true/false or an array of type names to keep as strings. (Default: false)",
+          "default": false
+        },
+        "debug": {
+          "description": "Prints protocol details to stdout. Can be true/false or an array of packet type names that should be printed. (Default: false)",
+          "default": false
+        },
+        "trace": {
+          "type": "boolean",
+          "description": "Generates stack traces on Error to include call site of library entrance ('long stack traces'). Slight performance penalty for most calls. (Default: true)",
+          "default": true
+        },
+        "localInfile": {
+          "type": "boolean",
+          "description": "Allow LOAD DATA INFILE to use the LOCAL modifier. (Default: true)",
+          "default": true
+        },
+        "multipleStatements": {
+          "type": "boolean",
+          "description": "Allow multiple mysql statements per query. Be careful with this, it could increase the scope of SQL injection attacks. (Default: false)",
+          "default": false
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of connection flags to use other than the default ones. It is also possible to blacklist default ones. For more information, check Connection Flags."
+        },
+        "ssl": {
+          "description": "Object with ssl parameters or a string containing name of ssl profile. See SSL options."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "sqlite",
+      "description": "An SQLite database connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "Path to the SQLite database file."
+        },
+        "mode": {
+          "type": "number",
+          "description": "File access mode. Defaults to READ_WRITE_CREATE. Use 0 for READ_ONLY, 1 for READ_WRITE, and 2 for READ_WRITE_CREATE."
+        }
+      },
+      "required": [
+        "filename"
+      ]
+    }
+  }
+}

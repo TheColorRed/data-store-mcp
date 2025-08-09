@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "mssql",
+      "description": "A Microsoft SQL Server (MSSQL) database connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "driver": {
+          "type": "string",
+          "description": "The MSSQL driver to use (e.g., 'tedious'). Optional."
+        },
+        "user": {
+          "type": "string",
+          "description": "The MSSQL user to authenticate as. Optional."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password for the MSSQL user. Optional."
+        },
+        "server": {
+          "type": "string",
+          "description": "The hostname or IP address of the MSSQL server."
+        },
+        "port": {
+          "type": "integer",
+          "description": "The port number to connect to. Optional."
+        },
+        "domain": {
+          "type": "string",
+          "description": "The Windows domain to authenticate under. Optional."
+        },
+        "database": {
+          "type": "string",
+          "description": "Name of the database to use for this connection. Optional."
+        },
+        "connectionTimeout": {
+          "type": "integer",
+          "description": "Milliseconds before a timeout occurs during initial connection. Optional"
+        },
+        "requestTimeout": {
+          "type": "integer",
+          "description": "Milliseconds before a timeout occurs during a query request. Optional."
+        },
+        "stream": {
+          "type": "boolean",
+          "description": "If true, query results are returned as a stream. Optional."
+        },
+        "parseJSON": {
+          "type": "boolean",
+          "description": "If true, automatically parses JSON columns. Optional."
+        },
+        "arrayRowMode": {
+          "type": "boolean",
+          "description": "If true, rows are returned as arrays instead of objects. Optional."
+        }
+      }
+    }
+  }
+}

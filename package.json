@@ -1,0 +1,68 @@
+{
+  "name": "data-store-mcp",
+  "displayName": "Data Store MCP",
+  "description": "MCP for Data Store",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheColorRed/data-store-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheColorRed/data-store-mcp/issues"
+  },
+  "categories": [
+    "Other",
+    "AI",
+    "Chat"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": ".vscode/connections.json",
+        "url": "./src/schemas/connections.schema.json"
+      }
+    ],
+    "commands": [],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "data-store-mcp",
+        "label": "Data Store"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/mssql": "^9.1.7",
+    "@types/node": "22.x",
+    "@types/pg": "^8.15.5",
+    "@types/vscode": "^1.102.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.32.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.1",
+    "mssql": "^11.0.1",
+    "mysql2": "^3.14.3",
+    "node-sql-parser": "^5.3.10",
+    "pg": "^8.16.3",
+    "sqlite3": "^5.1.7",
+    "zod": "^3.25.76"
+  }
+}
