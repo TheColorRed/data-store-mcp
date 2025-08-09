@@ -1,4 +1,4 @@
-import { Database } from 'sqlite3';
+import sqlite, { type Database } from 'sqlite3';
 import { SqlDataSource, type DatabaseSourceConfig } from '../database.js';
 
 const Promisify =
@@ -18,7 +18,7 @@ export class SQLite extends SqlDataSource {
   private connection!: Database;
 
   async connect(config: DatabaseSourceConfig): Promise<void> {
-    this.connection = new Database(config.options.filename, parseInt(config.options.mode));
+    this.connection = new sqlite.Database(config.options.filename, parseInt(config.options.mode));
   }
 
   async mutation(sql: string): Promise<any> {

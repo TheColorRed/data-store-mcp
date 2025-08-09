@@ -1,11 +1,11 @@
-import sql, { connect, ConnectionPool, type config as MSSQLConfig } from 'mssql';
+import sql, { type ConnectionPool, type config as MSSQLConfig } from 'mssql';
 import { SqlDataSource, type DatabaseSourceConfig } from '../database.js';
 
 export class MSSQL extends SqlDataSource {
   private connection!: ConnectionPool;
 
   async connect(config: DatabaseSourceConfig): Promise<void> {
-    this.connection = await connect(config.options as unknown as MSSQLConfig);
+    this.connection = await sql.connect(config.options as unknown as MSSQLConfig);
   }
 
   async mutation(sql: string): Promise<any> {

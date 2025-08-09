@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { DatabaseSourceConfig, DataSource } from './database.js';
 import { MSSQL } from './sources/mssql.js';
 import { MySQL } from './sources/mysql.js';
-import { Postgres } from './sources/postsgres.js';
+import { Postgres } from './sources/postgres.js';
 import { SQLite } from './sources/sqlite.js';
 
 interface Folder {
