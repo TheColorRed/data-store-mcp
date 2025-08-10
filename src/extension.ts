@@ -13,6 +13,13 @@ export function activate(context: vscode.ExtensionContext) {
   if (os.platform() === 'win32') __dirname = __dirname.replace(/^\//, '');
   const folders = vscode.workspace.workspaceFolders ?? [];
 
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    '.vscode/{connections,stores}.json,.vscode/*.{connections,stores}.json'
+  );
+  watcher.onDidChange(() => didChangeEmitter.fire());
+  watcher.onDidCreate(() => didChangeEmitter.fire());
+  watcher.onDidDelete(() => didChangeEmitter.fire());
+
   const dataStoreMcpProvider = vscode.lm.registerMcpServerDefinitionProvider('data-store-mcp', {
     onDidChangeMcpServerDefinitions: didChangeEmitter.event,
     provideMcpServerDefinitions: async () => {

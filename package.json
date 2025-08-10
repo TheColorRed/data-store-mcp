@@ -2,19 +2,23 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Connect to different data stores using the Model Context Protocol.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "TheColorRed",
   "keywords": [
+    "agent",
+    "chat",
+    "context",
+    "crud",
     "data",
-    "store",
+    "graphql",
     "mcp",
     "model",
-    "context",
-    "protocol",
     "mysql",
-    "sqlite",
+    "mssql",
     "postgres",
-    "mssql"
+    "sqlite",
+    "store",
+    "vscode-extension"
   ],
   "icon": "images/icon.png",
   "type": "module",
@@ -29,16 +33,26 @@
     "url": "https://github.com/TheColorRed/data-store-mcp/issues"
   },
   "categories": [
-    "Other",
     "AI",
-    "Chat"
+    "Chat",
+    "Other"
   ],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:.vscode/stores.json",
+    "workspaceContains:.vscode/*.stores.json",
+    "workspaceContains:.vscode/connections.json",
+    "workspaceContains:.vscode/*.connections.json"
+  ],
   "contributes": {
     "jsonValidation": [
       {
-        "fileMatch": ".vscode/connections.json",
-        "url": "./schemas/connections.schema.json"
+        "fileMatch": ".vscode/{connections,stores}.json",
+        "url": "./out/schemas/connections.schema.json"
+      },
+      {
+        "fileMatch": ".vscode/*.{connection,store}.json",
+        "url": "./out/schemas/connection.schema.json"
       }
     ],
     "commands": [],
@@ -52,10 +66,12 @@
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run copy-json",
     "compile": "tsc -p ./",
+    "prewatch": "rm -rf out && mkdir out && npm run copy-json",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
+    "watch-json": "chokidar \"src/schemas/**/*.json\" -c \"npm run copy-json\"",
     "copy-json": "cpx \"src/**/*.json\" out"
   },
   "devDependencies": {
@@ -68,12 +84,16 @@
     "@typescript-eslint/parser": "^8.39.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^9.2.0",
     "cpx": "^1.5.0",
     "eslint": "^9.32.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
+    "fast-glob": "^3.3.3",
+    "graphql": "^16.11.0",
     "mssql": "^11.0.1",
     "mysql2": "^3.14.3",
     "node-sql-parser": "^5.3.10",

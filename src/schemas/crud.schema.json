@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "crud",
+      "description": "A CRUD operation (Create, Read, Update, Delete)."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "object",
+          "description": "The headers to include for all CRUD endpoints."
+        },
+        "endpoints": {
+          "type": "array",
+          "description": "The endpoints for the CRUD operations. Each item can be a string (the URL) or an object with a `method` and `url` properties.",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "A description of the CRUD operation. This can help the agent better choose the right operation."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "The endpoint of where the CRUD operation will be performed."
+                  },
+                  "method": {
+                    "type": "string",
+                    "description": "The HTTP method for the CRUD operation. Defaults to `GET`.",
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "DELETE"
+                    ]
+                  },
+                  "search": {
+                    "type": "object",
+                    "description": "The search parameters that the agent will convert into `?key=value&key2=value2`.\n\n- For the key, use the name of the key to be passed.\n- For the value, use a descriptive value that describes the purpose of the param so that the agent can understand it."
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

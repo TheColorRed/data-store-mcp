@@ -1,13 +1,15 @@
+import http from 'http';
+import https from 'https';
 import nodeSqlParser from 'node-sql-parser';
 
-export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql';
+export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'crud' | 'graphql';
 
-export interface DatabaseSourceConfig {
+export interface DatabaseSourceConfig<Cfg = unknown> {
   id: string;
   type: DataSourceTypes;
   options: {
-    [key: string]: string;
-  };
+    [key: string]: any;
+  } & Cfg;
 }
 
 export class UnsupportedActionError extends Error {
@@ -17,38 +19,55 @@ export class UnsupportedActionError extends Error {
   }
 }
 
-export abstract class DataSource<T = unknown> {
+export type TablePayload = { tableName?: string };
+
+export type ActionPayload<T = Record<string, any>> = {
+  connectionId?: string;
+  // Database options
+  sql?: string;
+  // Http options
+  endpoint?: string;
+  payload?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  // Other options
+  params?: any[];
+} & Partial<T>;
+
+export abstract class DataSource<Cfg = unknown, T = unknown> {
   // Abstract methods for CRUD operations
-  abstract select(sql: string, params?: any[]): Promise<T>;
-  abstract insert(sql: string, params?: any[]): Promise<T>;
-  abstract update(sql: string, params?: any[]): Promise<T>;
-  abstract delete(sql: string, params?: any[]): Promise<T>;
-  abstract mutation(sql: string, params?: any[]): Promise<T>;
+  abstract select(settings: ActionPayload): Promise<T>;
+  abstract insert(settings: ActionPayload): Promise<T>;
+  abstract update(settings: ActionPayload): Promise<T>;
+  abstract delete(settings: ActionPayload): Promise<T>;
+  abstract mutation(settings: ActionPayload): Promise<T>;
 
   // Abstract methods for testing the type of queries
-  abstract isMutation(sql: string): Promise<boolean> | boolean;
-  abstract isSelect(sql: string): Promise<boolean> | boolean;
-  abstract isInsert(sql: string): Promise<boolean> | boolean;
-  abstract isUpdate(sql: string): Promise<boolean> | boolean;
-  abstract isDelete(sql: string): Promise<boolean> | boolean;
+  abstract isMutation(settings: ActionPayload): Promise<boolean> | boolean;
+  abstract isSelect(settings: ActionPayload): Promise<boolean> | boolean;
+  abstract isInsert(settings: ActionPayload): Promise<boolean> | boolean;
+  abstract isUpdate(settings: ActionPayload): Promise<boolean> | boolean;
+  abstract isDelete(settings: ActionPayload): Promise<boolean> | boolean;
 
   // Abstract methods for schema operations
-  abstract listCollections(): Promise<T>;
-  abstract showCollectionSchema(collection: string): Promise<T>;
+  abstract listCollections(settings: ActionPayload): Promise<T>;
+  abstract showSchema(settings: ActionPayload<TablePayload>): Promise<T>;
 
   // Abstract methods for connecting and closing the data source
-  abstract connect(config: any): Promise<void>;
-  abstract close(): Promise<void>;
+  abstract connect(settings: ActionPayload): Promise<void>;
+  abstract close(settings: ActionPayload): Promise<void>;
+
+  constructor(protected connectionConfig: DatabaseSourceConfig & { options: Cfg }) {}
 }
 
 export abstract class SqlDataSource<T = unknown> extends DataSource<T> {
-  abstract select(sql: string): Promise<T>;
-  abstract insert(sql: string): Promise<T>;
-  abstract update(sql: string): Promise<T>;
-  abstract delete(sql: string): Promise<T>;
-  abstract mutation(sql: string): Promise<T>;
-  abstract listCollections(): Promise<T>;
-  abstract showCollectionSchema(collection: string): Promise<T>;
+  abstract select(settings: ActionPayload): Promise<T>;
+  abstract mutation(settings: ActionPayload): Promise<T>;
+  abstract insert(settings: ActionPayload): Promise<T>;
+  abstract update(settings: ActionPayload): Promise<T>;
+  abstract delete(settings: ActionPayload): Promise<T>;
+  abstract listCollections(settings: ActionPayload): Promise<T>;
+  abstract showSchema(settings: ActionPayload<TablePayload>): Promise<T>;
   /**
    * Parse the given SQL query and return its AST (Abstract Syntax Tree).
    * @param sql The SQL query to parse.
@@ -63,8 +82,8 @@ export abstract class SqlDataSource<T = unknown> extends DataSource<T> {
    * Check if the given SQL query is a mutation (INSERT, UPDATE, DELETE).
    * @param sql The SQL query to check.
    */
-  isMutation(sql: string) {
-    const ast = this.#parseQuery(sql);
+  isMutation(settings: ActionPayload) {
+    const ast = this.#parseQuery(settings.sql ?? '');
     if (Array.isArray(ast)) {
       // return false if the ast type has a non-select node
       return ast.some(node => node.type === 'insert' || node.type === 'update' || node.type === 'delete');
@@ -75,44 +94,102 @@ export abstract class SqlDataSource<T = unknown> extends DataSource<T> {
    * Check if the given SQL query is a SELECT statement.
    * @param sql The SQL query to check.
    */
-  isSelect(sql: string) {
-    const ast = this.#parseQuery(sql);
+  isSelect(settings: ActionPayload) {
+    const ast = this.#parseQuery(settings.sql ?? '');
     return Array.isArray(ast) ? ast.every(node => node.type === 'select') : ast.type === 'select';
   }
   /**
    * Check if the given SQL query is an INSERT statement.
    * @param sql The SQL query to check.
    */
-  isInsert(sql: string) {
-    const ast = this.#parseQuery(sql);
+  isInsert(settings: ActionPayload) {
+    const ast = this.#parseQuery(settings.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'insert') : ast.type === 'insert';
   }
   /**
    * Check if the given SQL query is an UPDATE statement.
    * @param sql The SQL query to check.
    */
-  isUpdate(sql: string) {
-    const ast = this.#parseQuery(sql);
+  isUpdate(settings: ActionPayload) {
+    const ast = this.#parseQuery(settings.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'update') : ast.type === 'update';
   }
   /**
    * Check if the given SQL query is a DELETE statement.
    * @param sql The SQL query to check.
    */
-  isDelete(sql: string) {
-    const ast = this.#parseQuery(sql);
+  isDelete(settings: ActionPayload) {
+    const ast = this.#parseQuery(settings.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'delete') : ast.type === 'delete';
   }
   /**
    * Get the types of SQL queries present in the given SQL string.
    * @param sql The SQL query to analyze.
    */
-  queryTypes(sql: string) {
+  queryTypes(settings: ActionPayload) {
     const types: string[] = [];
-    if (this.isSelect(sql)) types.push('select');
-    if (this.isInsert(sql)) types.push('insert');
-    if (this.isUpdate(sql)) types.push('update');
-    if (this.isDelete(sql)) types.push('delete');
+    if (this.isSelect(settings)) types.push('select');
+    if (this.isInsert(settings)) types.push('insert');
+    if (this.isUpdate(settings)) types.push('update');
+    if (this.isDelete(settings)) types.push('delete');
     return types;
+  }
+}
+
+export abstract class HttpDataSource<Cfg = unknown, T = unknown> extends DataSource<Cfg, T> {
+  abstract select(settings: ActionPayload): Promise<T>;
+  abstract mutation(settings: ActionPayload): Promise<T>;
+  abstract insert(settings: ActionPayload): Promise<T>;
+  abstract update(settings: ActionPayload): Promise<T>;
+  abstract delete(settings: ActionPayload): Promise<T>;
+  abstract listCollections(settings: ActionPayload): Promise<T>;
+  abstract showSchema(settings: ActionPayload<TablePayload>): Promise<T>;
+
+  /**
+   * Makes an HTTP request to the GraphQL endpoint.
+   * @param payload The payload containing the request details.
+   */
+  protected makeHttpRequest(payload: ActionPayload): Promise<string> {
+    if (!payload.endpoint) return Promise.reject(new Error('No endpoint specified'));
+
+    const url = new URL(payload.endpoint ?? '');
+    const isHttps = url.protocol === 'https:';
+    const reqFn = isHttps ? https.request : http.request;
+    const options: https.RequestOptions = url;
+    if (isHttps) {
+      options.rejectUnauthorized = false; // Allow self-signed certs
+    }
+    options.method = payload.method ?? 'GET';
+    options.headers = payload.headers ?? {};
+    return new Promise((resolve, reject) => {
+      const req = reqFn(options, res => {
+        let data = '';
+        res.on('data', chunk => (data += chunk));
+        res.on('end', () => resolve(data));
+      });
+      req.on('error', err => reject(err));
+      if (payload.payload) req.write(payload.payload);
+      req.end();
+    });
+  }
+
+  isSelect() {
+    return true;
+  }
+
+  isInsert() {
+    return false;
+  }
+
+  isUpdate() {
+    return false;
+  }
+
+  isDelete() {
+    return false;
+  }
+
+  isMutation() {
+    return false;
   }
 }

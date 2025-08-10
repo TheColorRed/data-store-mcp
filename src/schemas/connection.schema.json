@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Schema for validating database connection configurations",
+  "type": "object",
+  "required": [
+    "type",
+    "id",
+    "options"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "A unique identifier for the connection."
+    },
+    "type": {
+      "type": "string",
+      "description": "The type of database connection."
+    },
+    "description": {
+      "type": "string",
+      "description": "A description of the connection. This can help the agent better choose the right connection."
+    },
+    "options": {
+      "type": "object",
+      "description": "The options for the database connection."
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "./mysql.schema.json"
+    },
+    {
+      "$ref": "./sqlite.schema.json"
+    },
+    {
+      "$ref": "./postgres.schema.json"
+    },
+    {
+      "$ref": "./mssql.schema.json"
+    },
+    {
+      "$ref": "./crud.schema.json"
+    },
+    {
+      "$ref": "./graphql.schema.json"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "graphql",
+      "description": "A GraphQL operation."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "object",
+          "description": "The headers to include for all CRUD endpoints."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the GraphQL operation. This can help the agent better choose the right operation."
+        },
+        "url": {
+          "type": "string",
+          "description": "The endpoint of where the GraphQL operation will be performed."
+        }
+      },
+      "required": [
+        "url"
+      ]
+    }
+  }
+}

@@ -3,34 +3,6 @@
   "$comment": "Schema for validating database connection configurations",
   "type": "array",
   "items": {
-    "required": [
-      "type",
-      "id",
-      "options"
-    ],
-    "properties": {
-      "id": {
-        "type": "string",
-        "description": "A unique identifier for the connection."
-      },
-      "options": {
-        "type": "object",
-        "description": "The options for the database connection."
-      }
-    },
-    "oneOf": [
-      {
-        "$ref": "./mysql.schema.json"
-      },
-      {
-        "$ref": "./sqlite.schema.json"
-      },
-      {
-        "$ref": "./postgres.schema.json"
-      },
-      {
-        "$ref": "./mssql.schema.json"
-      }
-    ]
+    "$ref": "./connection.schema.json"
   }
 }

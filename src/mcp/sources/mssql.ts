@@ -1,5 +1,5 @@
 import sql, { type ConnectionPool, type config as MSSQLConfig } from 'mssql';
-import { SqlDataSource, type DatabaseSourceConfig } from '../database.js';
+import { SqlDataSource, TablePayload, type ActionPayload, type DatabaseSourceConfig } from '../database.js';
 
 export class MSSQL extends SqlDataSource {
   private connection!: ConnectionPool;
@@ -8,37 +8,37 @@ export class MSSQL extends SqlDataSource {
     this.connection = await sql.connect(config.options as unknown as MSSQLConfig);
   }
 
-  async mutation(sql: string): Promise<any> {
+  async mutation(settings: ActionPayload): Promise<any> {
     const request = this.connection.request();
-    const result = await request.query(sql);
+    const result = await request.query(settings.sql ?? '');
     return result.recordset;
   }
 
-  async select(sql: string): Promise<any> {
-    if (!this.isSelect(sql)) throw new Error('The provided SQL query is not a SELECT statement.');
+  async select(settings: ActionPayload): Promise<any> {
+    if (!this.isSelect(settings)) throw new Error('The provided SQL query is not a SELECT statement.');
     const request = this.connection.request();
-    const result = await request.query(sql);
+    const result = await request.query(settings.sql ?? '');
     return result.recordset;
   }
 
-  async insert(sql: string): Promise<any> {
-    if (!this.isInsert(sql)) throw new Error('The provided SQL query is not an INSERT statement.');
+  async insert(settings: ActionPayload): Promise<any> {
+    if (!this.isInsert(settings)) throw new Error('The provided SQL query is not an INSERT statement.');
     const request = this.connection.request();
-    const result = await request.query(sql);
+    const result = await request.query(settings.sql ?? '');
     return result.recordset;
   }
 
-  async update(sql: string): Promise<any> {
-    if (!this.isUpdate(sql)) throw new Error('The provided SQL query is not an UPDATE statement.');
+  async update(settings: ActionPayload): Promise<any> {
+    if (!this.isUpdate(settings)) throw new Error('The provided SQL query is not an UPDATE statement.');
     const request = this.connection.request();
-    const result = await request.query(sql);
+    const result = await request.query(settings.sql ?? '');
     return result.recordset;
   }
 
-  async delete(sql: string): Promise<any> {
-    if (!this.isDelete(sql)) throw new Error('The provided SQL query is not a DELETE statement.');
+  async delete(settings: ActionPayload): Promise<any> {
+    if (!this.isDelete(settings)) throw new Error('The provided SQL query is not a DELETE statement.');
     const request = this.connection.request();
-    const result = await request.query(sql);
+    const result = await request.query(settings.sql ?? '');
     return result.recordset;
   }
 
@@ -49,10 +49,10 @@ export class MSSQL extends SqlDataSource {
     return result.recordset;
   }
 
-  async showCollectionSchema(collection: string): Promise<any> {
+  async showSchema(settings: ActionPayload<TablePayload>): Promise<any> {
     const result = await this.connection
       .request()
-      .input('table', sql.VarChar, collection)
+      .input('table', sql.VarChar, settings.tableName)
       .query(`SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table`);
     return result.recordset;
   }
