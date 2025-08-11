@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Connect to different data stores using the Model Context Protocol.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "TheColorRed",
   "keywords": [
     "agent",
@@ -40,9 +40,9 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "workspaceContains:.vscode/stores.json",
-    "workspaceContains:.vscode/*.stores.json",
+    "workspaceContains:.vscode/*.store.json",
     "workspaceContains:.vscode/connections.json",
-    "workspaceContains:.vscode/*.connections.json"
+    "workspaceContains:.vscode/*.connection.json"
   ],
   "contributes": {
     "jsonValidation": [
