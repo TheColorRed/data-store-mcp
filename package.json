@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Connect to different data stores using the Model Context Protocol.",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "publisher": "TheColorRed",
   "keywords": [
     "agent",

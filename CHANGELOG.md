@@ -1,9 +1,14 @@
 # Change Log
 
-All notable changes to the "data-store-mcp" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
+## 1.0.0 - 2025-08-09
 
 - Initial release
+
+## 1.1.0 - 2025-08-10
+
+- Added support for additional data stores.
+  - CRUD (Create, Read, Update, Delete)
+  - GraphQL
+- Added additional error handling.
+- Added extra response information when the connections tool is used.
+- Updated README.md with more examples and usage instructions.

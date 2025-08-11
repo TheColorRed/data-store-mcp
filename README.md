@@ -25,6 +25,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 - [Table of Contents](#table-of-contents)
   - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
   - [The agent](#the-agent)
+    - [Comments/Descriptions](#commentsdescriptions)
     - [Forcing a tool to run](#forcing-a-tool-to-run)
     - [Tool failure](#tool-failure)
   - [Example](#example)
@@ -64,6 +65,19 @@ Here are some ways for using the MCP safely outside of the tools:
 ## The agent
 
 The agent is a powerful AI that can interact with the data store using the tools provided by the MCP. It can understand natural language instructions and execute the appropriate tools to perform the requested actions.
+
+### Comments/Descriptions
+
+If you are using a data store that supports comments/descriptions for your tables/columns/collections/etc., the agent will use them to understand the context of the data so that it can generate more accurate queries.
+
+```sql
+create table users (
+  id int(10) unsigned primary key not null auto_increment comment 'The unique identifier for the user',
+  name varchar(255) not null comment 'The name of the user',
+  email varchar(255) not null comment 'The email address of the user',
+)
+comment 'This table stores information about users in the system';
+```
 
 ### Forcing a tool to run
 

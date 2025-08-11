@@ -37,7 +37,7 @@ const globs = await glob(
   foldersIn.map(f => [`${f}/.vscode/{connections,stores}.json`, `${f}/.vscode/*.{connection,store}.json`]).flat()
 );
 
-console.error('files:', globs);
+console.error('connections:', globs);
 
 const isWindows = os.platform() === 'win32';
 const foldersInit: Folder[] = globs.map((file: string) => {
