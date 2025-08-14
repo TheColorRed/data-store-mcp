@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { DatabaseSourceConfig, DataSource, SqlDataSource } from './database.js';
 import { Crud, type CrudConfigOptions } from './sources/crud.js';
 import { GraphQL, type GraphQLConfigOptions } from './sources/graphql.js';
+import { MongoDB } from './sources/mongodb.js';
 import { MSSQL } from './sources/mssql.js';
 import { MySQL } from './sources/mysql.js';
 import { Postgres } from './sources/postgres.js';
@@ -32,11 +33,14 @@ interface Folder {
   }[];
 }
 
-const foldersIn: string[] = JSON.parse(process.argv[2]).map((f: string) => f.replace(/\\/g, '/'));
+const extensionRoot = process.argv[3];
+const workspaceFolders = JSON.parse(process.argv[2]);
+const foldersIn: string[] = workspaceFolders.map((f: string) => f.replace(/\\/g, '/'));
 const globs = await glob(
   foldersIn.map(f => [`${f}/.vscode/{connections,stores}.json`, `${f}/.vscode/*.{connection,store}.json`]).flat()
 );
 
+console.error('extension root:', extensionRoot);
 console.error('connections:', globs);
 
 const isWindows = os.platform() === 'win32';
@@ -48,19 +52,21 @@ const foldersInit: Folder[] = globs.map((file: string) => {
   };
 });
 
-const folders: Folder[] = await Promise.all(
-  foldersInit.map(async (folder: Folder) => {
-    try {
-      const data = await fs.readFile(folder.dbFile, 'utf-8');
-      folder.connections = JSON.parse(data) ?? [];
-    } catch (error) {
-      console.error(`Error reading file ${folder.dbFile}:`, error);
-      folder.connections = [];
-    }
-    return folder;
-  })
-);
+const folders = async () =>
+  await Promise.all(
+    foldersInit.map(async (folder: Folder) => {
+      try {
+        const data = await fs.readFile(folder.dbFile, 'utf-8');
+        folder.connections = JSON.parse(data) ?? [];
+      } catch (error) {
+        console.error(`Error reading file ${folder.dbFile}:`, error);
+        folder.connections = [];
+      }
+      return folder;
+    })
+  );
 
+const parameterInformation = await fs.readFile(`${extensionRoot}/docs/parameter-information.md`, 'utf-8');
 const server = new McpServer({
   name: 'Data Source MCP Server',
   version: '1.0.0',
@@ -84,19 +90,26 @@ const returnText = (...messages: (string | boolean)[]) => ({
 const getSource = async (
   connectionId: string
 ): Promise<{ source: DataSource; connection: { id: string; type: string } }> => {
-  const connection = folders
-    .flatMap(folder => folder.connections)
-    .find(conn => conn.id === connectionId) as DatabaseSourceConfig;
+  const connection = (await folders()).flatMap(folder => folder.connections).find(conn => conn.id === connectionId) as
+    | DatabaseSourceConfig
+    | undefined;
   let source: DataSource;
+  if (!connection || !connection.id)
+    throw new Error(`Connection id not found: "${connectionId}". Try again using a different connection`);
+
   // prettier-ignore
   switch (connection.type) {
+    // SQL Data Sources
     case 'mysql': source = new MySQL(connection); break;
     case 'sqlite': source = new SQLite(connection); break;
     case 'postgres': source = new Postgres(connection); break;
     case 'mssql': source = new MSSQL(connection); break;
+    // HTTP Data Sources
     case 'crud': source = new Crud(connection as DatabaseSourceConfig<CrudConfigOptions>); break;
     case 'graphql': source = new GraphQL(connection as DatabaseSourceConfig<GraphQLConfigOptions>); break;
-    default: throw new Error(`Unsupported data source: ${connection.type}`);
+    // NoSQL Data Sources
+    case 'mongodb': source = new MongoDB(connection); break;
+    default: throw new Error(`Unsupported data type: ${connection.type}`);
   }
   if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);
   await source.connect(connection);
@@ -108,24 +121,12 @@ const toolActions = {
   // Database related options
   sql: z.string().optional(),
   // HTTP related options
-  payload: z.string().optional(),
+  // payload is either a string or object
+  payload: z.union([z.record(z.any()), z.string()]).optional(),
   endpoint: z.string().optional(),
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional(),
   headers: z.record(z.string()).optional(),
 };
-
-const parameterInformation = `Parameters:
-1. For database data sources
-  - sql: The SQL query to run for SQL data sources.
-2. For HTTP data sources (CRUD/GraphQL)
-  - endpoint: The HTTP endpoint to call.
-    - Should try to use the most restrictive endpoint available.
-    - Should use the "search" object from the connections tool to create \`?key=value\` query strings.
-  - payload: The payload to send in the request body.
-    - for graphql this takes a JSON object containing \`query\` and optionally \`variables\`.
-  - method: The HTTP method to use (GET, POST, PUT, DELETE).
-  - headers: The headers to include in the request.
-`;
 
 // This tool lists all available data source connections.
 server.tool(
@@ -133,73 +134,38 @@ server.tool(
   'Lists all available data source connections. This should almost always be the first tool you call when working with a data source.',
   async () => {
     const connections = await Promise.all(
-      folders.map(async folder => {
+      (
+        await folders()
+      ).map<Promise<{ id: string; type: string }>>(async folder => {
         const data = JSON.parse(await fs.readFile(folder.dbFile, 'utf-8'));
         folder.connections = data ?? [];
         return data;
       })
     );
 
-    return returnText(
-      JSON.stringify(connections),
-      `
-# Connections
-This document will explain how the subsequent tools need to interact with data store tools so you can make as few mistakes as possible and call the tools with the correct parameters the first time without guesswork.
-
-1. Once the appropriate connection(s) are selected, you should output the connection ID(s) to the user.
-2. After running this tool, you should always understand the schema by calling the \`#schema\` tool with the appropriate parameters if you don't already have the schema information.
-
-# Workflow
-1. Use the \`#connections\` tool to list all available data source connections.
-2. Use the \`#schema\` tool to get the schema of the data source.
-3. Do a search on the data source to get the specific data you need, as you do not know what is contained in the data source. Do not guess on what values are needed to make the next query/queries. Either use the input provided by the user or do a lookup on the data source using one or more \`#select\` tools.
-4. Use the appropriate tool to run the desired operation(s) for the users request.
-
-## GraphQL
-When executing a graphql query, you should provide a \`payload\` key containing a JSON object with a \`query\` key and optionally a \`variables\` key. When a dynamic value is provided, you MUST add it to the variables property, and not pass it directly in the query string for security reasons.
-
-## CRUD (Http API)
-When executing a CRUD operation, you should provide the following keys:
-- \`endpoint\` (required): The HTTP endpoint to call. Using the \`search\` object from the connections, create a \`?key=value\` query string when necessary.
-- \`payload\` (optional): The payload to send in the request body.
-- \`method\` (optional): The HTTP method to use (\`GET\`, \`POST\`, \`PUT\`, \`DELETE\`). Defaults to a \`GET\` request.
-- \`headers\` (optional): The headers to include in the request.
-
-### URL Parameters
-Urls sometimes have parameters in them, which can be extracted and used in the tool calls. These should be replaced by values provided by the user.
-
-## Databases
-When executing a database query using the \`select\`, \`insert\`, \`update\`, or \`delete\` tools, you need to provide an \`sql\` key containing the SQL query string.
-
-- \`SELECT\` queries MUST be used with the \`#select\` tool.
-- \`INSERT\` queries MUST be used with the \`#insert\` tool.
-- \`UPDATE\` queries MUST be used with the \`#update\` tool.
-- \`DELETE\` queries MUST be used with the \`#delete\` tool.
-- All other queries MUST be used with the \`#mutation\` tool.
-
-Make sure you have all the information necessary to construct the SQL query and know the schema of the database before executing any queries.
-`
-    );
-  }
-);
-
-// This tool lists all tables in the data source.
-server.tool(
-  'tables',
-  'Lists all tables/collections in the data source.',
-  {
-    connectionId: z.string(),
-  },
-  async actions => {
-    const { source } = await getSource(actions.connectionId);
-    let result;
-    try {
-      result = await source.listCollections(actions);
-    } catch (error) {
-      return returnText('Failed to list collections from data source. ' + (error as Error).message);
+    // Find duplicate connection ids and throw an error.
+    // The error should list the id's and what files they were found in.
+    // Show the message:
+    // Duplicate connection ids found:
+    //   - id-1: .vscode/example.store.json
+    //   - id-2: .vscode/another.store.json
+    const connectionIds = new Map<string, string[]>();
+    const folders2 = await folders();
+    connections.forEach((conn, index) => {
+      const id = Array.isArray(conn) ? conn[0].id : conn.id;
+      if (!connectionIds.has(id)) connectionIds.set(id, []);
+      connectionIds.get(id)!.push(folders2[index].dbFile);
+    });
+    const duplicates = Array.from(connectionIds.entries()).filter(([_, files]) => files.length > 1);
+    if (duplicates.length > 0) {
+      const errorMessage = `Duplicate connection ids found (These must be resolved):\n${duplicates
+        .map(([id, files]) => `  - ${id}: ${files.join(', ')}`)
+        .join('\n')}`;
+      throw new Error(errorMessage);
     }
-    await source.close(actions);
-    return returnText(JSON.stringify(result));
+
+    const docs = await fs.readFile(`${extensionRoot}/docs/connections.md`, 'utf-8');
+    return returnText(JSON.stringify(connections), docs);
   }
 );
 
@@ -219,7 +185,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to get schema from data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );
@@ -238,7 +204,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run mutation on data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );
@@ -260,7 +226,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run select on data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );
@@ -282,7 +248,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run insert on data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );
@@ -304,7 +270,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run update on data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );
@@ -326,7 +292,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run delete on data source. ' + (error as Error).message);
     }
-    await source.close(actions);
+    source.close(actions);
     return returnText(JSON.stringify(result));
   }
 );

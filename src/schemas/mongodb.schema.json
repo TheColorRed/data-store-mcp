@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "mongodb",
+      "description": "A MongoDB data source."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "object",
+          "description": "The headers to include for all CRUD endpoints."
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL to connect to the MongoDB database."
+        },
+        "options": {
+          "type": "object",
+          "description": "Additional options for the MongoDB connection.",
+          "properties": {
+            "appName": {
+              "type": "string",
+              "description": "Name sent to server in client metadata."
+            },
+            "authMechanism": {
+              "type": "string",
+              "description": "Authentication method (e.g., SCRAM-SHA-256)."
+            },
+            "authMechanismProperties": {
+              "type": "string",
+              "description": "Additional authentication options as comma separated key:value pairs."
+            },
+            "authSource": {
+              "type": "string",
+              "description": "Database to authenticate against."
+            },
+            "autoSelectFamily": {
+              "type": "boolean",
+              "description": "Try IPv6/IPv4 addresses."
+            },
+            "compressors": {
+              "type": "string",
+              "description": "Allowed compression types (e.g., 'snappy,zlib,zstd')."
+            },
+            "connectTimeoutMS": {
+              "type": "integer",
+              "description": "Time to establish a TCP connection (ms)."
+            },
+            "directConnection": {
+              "type": "boolean",
+              "description": "Force operations to the host in URI."
+            },
+            "enableUtf8Validation": {
+              "type": "boolean",
+              "description": "Enable/disable UTF-8 validation."
+            },
+            "heartbeatFrequencyMS": {
+              "type": "integer",
+              "description": "Interval for server monitoring checks (ms)."
+            },
+            "loadBalanced": {
+              "type": "boolean",
+              "description": "Connect to a load balancer."
+            },
+            "localThresholdMS": {
+              "type": "integer",
+              "description": "Latency window for server selection (ms)."
+            },
+            "maxIdleTimeMS": {
+              "type": "integer",
+              "description": "Max idle time before closing a connection (ms)."
+            },
+            "maxPoolSize": {
+              "type": "integer",
+              "description": "Max number of connections in pool."
+            },
+            "maxConnecting": {
+              "type": "integer",
+              "description": "Max concurrent connections being established."
+            },
+            "maxStalenessSeconds": {
+              "type": "integer",
+              "description": "Max replication lag for server selection (seconds)."
+            },
+            "minPoolSize": {
+              "type": "integer",
+              "description": "Min number of connections in pool."
+            },
+            "proxyHost": {
+              "type": "string",
+              "description": "SOCKS5 proxy host."
+            },
+            "proxyPort": {
+              "type": "integer",
+              "description": "SOCKS5 proxy port."
+            },
+            "proxyUsername": {
+              "type": "string",
+              "description": "SOCKS5 proxy username."
+            },
+            "proxyPassword": {
+              "type": "string",
+              "description": "SOCKS5 proxy password."
+            },
+            "readConcernLevel": {
+              "type": "string",
+              "description": "Default read concern."
+            },
+            "readPreference": {
+              "type": "string",
+              "description": "Default read preference (e.g., 'primary')."
+            },
+            "readPreferenceTags": {
+              "type": "string",
+              "description": "Read preference tags as comma-separated key:value pairs."
+            },
+            "replicaSet": {
+              "type": "string",
+              "description": "Name of replica set."
+            },
+            "retryReads": {
+              "type": "boolean",
+              "description": "Enable retryable reads."
+            },
+            "retryWrites": {
+              "type": "boolean",
+              "description": "Enable retryable writes."
+            },
+            "serverMonitoringMode": {
+              "type": "string",
+              "description": "Monitoring mode (auto, stream, poll)."
+            },
+            "serverSelectionTimeoutMS": {
+              "type": "integer",
+              "description": "Timeout for server selection (ms)."
+            },
+            "socketTimeoutMS": {
+              "type": "integer",
+              "description": "Time spent sending/receiving on a socket (ms)."
+            },
+            "srvMaxHosts": {
+              "type": "integer",
+              "description": "Max SRV results for seedlist."
+            },
+            "srvServiceName": {
+              "type": "string",
+              "description": "Service name for SRV lookup."
+            },
+            "ssl": {
+              "type": "boolean",
+              "description": "Enable SSL (alias for tls)."
+            },
+            "tls": {
+              "type": "boolean",
+              "description": "Enable TLS."
+            },
+            "tlsAllowInvalidCertificates": {
+              "type": "boolean",
+              "description": "Allow invalid TLS certificates (testing only)."
+            },
+            "tlsAllowInvalidHostnames": {
+              "type": "boolean",
+              "description": "Allow TLS hostname mismatch (testing only)."
+            },
+            "tlsCAFile": {
+              "type": "string",
+              "description": "Path to CA file for TLS."
+            },
+            "tlsCertificateKeyFile": {
+              "type": "string",
+              "description": "Path to client certificate/key file for TLS."
+            },
+            "tlsCertificateKeyFilePassword": {
+              "type": "string",
+              "description": "Password to decrypt client private key for TLS."
+            },
+            "tlsInsecure": {
+              "type": "boolean",
+              "description": "Relax TLS constraints (testing only)."
+            },
+            "waitQueueTimeoutMS": {
+              "type": "integer",
+              "description": "Timeout for checking out a connection from pool (ms)."
+            },
+            "zlibCompressionLevel": {
+              "type": "integer",
+              "description": "Compression level for zlib (-1 to 9)."
+            }
+          }
+        }
+      }
+    }
+  }
+}

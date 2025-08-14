@@ -5,6 +5,7 @@
   "version": "1.1.1",
   "publisher": "TheColorRed",
   "keywords": [
+    "language-model-tools",
     "agent",
     "chat",
     "context",
@@ -17,8 +18,7 @@
     "mssql",
     "postgres",
     "sqlite",
-    "store",
-    "vscode-extension"
+    "store"
   ],
   "icon": "images/icon.png",
   "type": "module",
@@ -64,28 +64,25 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run copy-json",
+    "vscode:prepublish": "npm run compile && npm run copy-json && npm run copy-docs",
     "compile": "tsc -p ./",
-    "prewatch": "rm -rf out && mkdir out && npm run copy-json",
+    "prewatch": "rm -rf out && mkdir out && npm run copy-json && npm run copy-docs",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
     "watch-json": "chokidar \"src/schemas/**/*.json\" -c \"npm run copy-json\"",
-    "copy-json": "cpx \"src/**/*.json\" out"
+    "copy-json": "cp -r \"src/schemas/\" out",
+    "copy-docs": "cp -r \"src/docs/\" out"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
     "@types/mssql": "^9.1.7",
     "@types/node": "22.x",
     "@types/pg": "^8.15.5",
     "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2",
     "chokidar-cli": "^3.0.0",
-    "concurrently": "^9.2.0",
     "cpx": "^1.5.0",
     "eslint": "^9.32.0",
     "typescript": "^5.9.2"
@@ -94,6 +91,7 @@
     "@modelcontextprotocol/sdk": "^1.17.1",
     "fast-glob": "^3.3.3",
     "graphql": "^16.11.0",
+    "mongodb": "^6.18.0",
     "mssql": "^11.0.1",
     "mysql2": "^3.14.3",
     "node-sql-parser": "^5.3.10",

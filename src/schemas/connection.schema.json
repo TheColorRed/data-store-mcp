@@ -43,6 +43,9 @@
     },
     {
       "$ref": "./graphql.schema.json"
+    },
+    {
+      "$ref": "./mongodb.schema.json"
     }
   ]
 }

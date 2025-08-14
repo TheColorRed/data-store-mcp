@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
   const folders = vscode.workspace.workspaceFolders ?? [];
 
   const watcher = vscode.workspace.createFileSystemWatcher(
-    '.vscode/{connections,stores}.json,.vscode/*.{connections,stores}.json'
+    '.vscode/{connections,stores}.json,.vscode/*.{connection,store}.json'
   );
   watcher.onDidChange(() => didChangeEmitter.fire());
   watcher.onDidCreate(() => didChangeEmitter.fire());
@@ -27,6 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
         new vscode.McpStdioServerDefinition('Data Store', 'node', [
           path.posix.join(__dirname, 'mcp/server.js'),
           `${JSON.stringify(folders.map(folder => folder.uri.fsPath))}`,
+          __dirname,
         ]),
       ];
     },
