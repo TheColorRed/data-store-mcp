@@ -20,6 +20,44 @@
       "type": "string",
       "description": "A description of the connection. This can help the agent better choose the right connection."
     },
+    "disallowedTools": {
+      "type": "array",
+      "description": "A list of tools that are not allowed to run for this connection even if the tool is enabled in the editor.\nFor example, if you want to enable delete operations for one connection but not this one, you can add 'delete' to this list while keeping the tool active.",
+      "items": {
+        "oneOf": [
+          {
+            "const": "select",
+            "title": "Select",
+            "description": "Disallow the select tool from being used with this connection."
+          },
+          {
+            "const": "insert",
+            "title": "Insert",
+            "description": "Disallow the insert tool from being used with this connection."
+          },
+          {
+            "const": "update",
+            "title": "Update",
+            "description": "Disallow the update tool from being used with this connection."
+          },
+          {
+            "const": "delete",
+            "title": "Delete",
+            "description": "Disallow the delete tool from being used with this connection."
+          },
+          {
+            "const": "mutation",
+            "title": "Mutation",
+            "description": "Disallow the mutation tool from being used with this connection."
+          },
+          {
+            "const": "schema",
+            "title": "Schema",
+            "description": "Disallow the schema tool from being used with this connection."
+          }
+        ]
+      }
+    },
     "options": {
       "type": "object",
       "description": "The options for the database connection."
@@ -46,6 +84,9 @@
     },
     {
       "$ref": "./mongodb.schema.json"
+    },
+    {
+      "$ref": "./s3.schema.json"
     }
   ]
 }

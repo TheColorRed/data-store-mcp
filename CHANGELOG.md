@@ -16,3 +16,12 @@
 ## 1.1.1 - 2025-08-11
 
 - Fixed activation events to correctly match single connection and store files.
+
+## 1.2.x - 2025-08-14
+
+- Added support for MongoDB.
+- Improved error messages.
+
+## 1.3.x - 2025-08-15
+
+- Added support for AWS S3.

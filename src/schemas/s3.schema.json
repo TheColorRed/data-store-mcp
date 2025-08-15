@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "s3",
+      "description": "An AWS S3 bucket connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "description": "The name of the S3 bucket to connect to."
+        },
+        "connection": {
+          "type": "object",
+          "required": [
+            "region",
+            "credentials"
+          ],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region where the bucket is located."
+            },
+            "credentials": {
+              "type": "object",
+              "properties": {
+                "accessKeyId": {
+                  "type": "string",
+                  "description": "AWS access key ID."
+                },
+                "secretAccessKey": {
+                  "type": "string",
+                  "description": "AWS secret access key."
+                }
+              },
+              "required": [
+                "accessKeyId",
+                "secretAccessKey"
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "connection"
+      ]
+    }
+  }
+}

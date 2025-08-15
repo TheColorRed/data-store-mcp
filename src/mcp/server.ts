@@ -19,6 +19,7 @@ import { MongoDB } from './sources/mongodb.js';
 import { MSSQL } from './sources/mssql.js';
 import { MySQL } from './sources/mysql.js';
 import { Postgres } from './sources/postgres.js';
+import { S3Source } from './sources/s3.js';
 import { SQLite } from './sources/sqlite.js';
 
 interface Folder {
@@ -32,6 +33,8 @@ interface Folder {
     };
   }[];
 }
+
+export type ToolType = 'select' | 'insert' | 'update' | 'delete' | 'schema' | 'mutation' | 'connections';
 
 const extensionRoot = process.argv[3];
 const workspaceFolders = JSON.parse(process.argv[2]);
@@ -109,12 +112,27 @@ const getSource = async (
     case 'graphql': source = new GraphQL(connection as DatabaseSourceConfig<GraphQLConfigOptions>); break;
     // NoSQL Data Sources
     case 'mongodb': source = new MongoDB(connection); break;
+    // Other Data Sources
+    case 's3': source = new S3Source(connection); break;
     default: throw new Error(`Unsupported data type: ${connection.type}`);
   }
   if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);
   await source.connect(connection);
   return { source, connection };
 };
+
+/**
+ * Tools that are disallowed to run for the connection.
+ * Options: 'select', 'insert', 'update', 'delete', 'schema', 'mutation'
+ * @param options The options for the data source connection.
+ */
+const isAllowed = (options: DatabaseSourceConfig, action: ToolType) => {
+  const disallowed = options.disallowedTools ?? [];
+  return !disallowed.includes(action);
+};
+
+const isAllowedError = (action: ToolType) =>
+  `Running the ${action} tool is not allowed for this connection as it is added to the 'disallowedTools' configuration file. Either remove it from the list or use a different connection.`;
 
 const toolActions = {
   connectionId: z.string(),
@@ -179,6 +197,9 @@ server.tool(
   },
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'schema')) throw new Error(isAllowedError('schema'));
+
     let result;
     try {
       result = await source.showSchema(actions);
@@ -198,6 +219,9 @@ server.tool(
   toolActions,
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'mutation')) throw new Error(isAllowedError('mutation'));
+
     let result;
     try {
       result = await source.mutation(actions);
@@ -217,6 +241,9 @@ server.tool(
   toolActions,
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'select')) throw new Error(isAllowedError('select'));
+
     if (source instanceof SqlDataSource && !source.isSelect({ sql: actions.sql }))
       return returnText('The provided SQL query is not a SELECT statement.');
 
@@ -239,6 +266,9 @@ server.tool(
   toolActions,
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'insert')) throw new Error(isAllowedError('insert'));
+
     if (source instanceof SqlDataSource && !source.isInsert({ sql: actions.sql }))
       return returnText('The provided SQL query is not an INSERT statement.');
 
@@ -261,6 +291,9 @@ server.tool(
   toolActions,
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'update')) throw new Error(isAllowedError('update'));
+
     if (source instanceof SqlDataSource && !source.isUpdate({ sql: actions.sql }))
       return returnText('The provided SQL query is not an UPDATE statement.');
 
@@ -283,6 +316,9 @@ server.tool(
   toolActions,
   async actions => {
     const { source } = await getSource(actions.connectionId);
+
+    if (!isAllowed(source.connectionConfig, 'delete')) throw new Error(isAllowedError('delete'));
+
     if (source instanceof SqlDataSource && !source.isDelete({ sql: actions.sql }))
       return returnText('The provided SQL query is not a DELETE statement.');
 

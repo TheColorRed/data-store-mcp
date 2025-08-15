@@ -3,7 +3,7 @@ import https from 'https';
 import nodeSqlParser from 'node-sql-parser';
 
 /** Supported data source types for the MCP server. */
-export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'crud' | 'graphql' | 'mongodb';
+export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'crud' | 'graphql' | 'mongodb' | 's3';
 
 /**
  * Generic connection configuration passed to data source implementations.
@@ -17,6 +17,8 @@ export interface DatabaseSourceConfig<Cfg = unknown> {
   id: string;
   /** The kind of data source (mysql, sqlite, etc.) */
   type: DataSourceTypes;
+  /** The list of tools that are not allowed to run for this connection. */
+  disallowedTools?: string[];
   /** Provider-specific options */
   options: {
     [key: string]: any;
@@ -84,7 +86,7 @@ export abstract class DataSource<Cfg = unknown, T = unknown> {
   abstract connect(payload: ActionPayload): Promise<void>;
   abstract close(payload: ActionPayload): Promise<void>;
 
-  constructor(protected connectionConfig: DatabaseSourceConfig & { options: Cfg }) {}
+  constructor(readonly connectionConfig: DatabaseSourceConfig & { options: Cfg }) {}
 
   /**
    * Helper to attempt a graceful close and fall back after a timeout.
@@ -133,6 +135,23 @@ export abstract class DataSource<Cfg = unknown, T = unknown> {
         }
       }
     }
+  }
+  /**
+   * Ensure the incoming payload is an object. If a string is supplied the
+   * function will attempt to parse JSON.
+   * @param payload The raw action payload passed to the data source
+   */
+  protected getPayloadObject<T>(payload: ActionPayload<T>): T {
+    const raw = payload.payload ?? {};
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw) as T;
+      } catch (e) {
+        const err = e as Error;
+        throw new Error('Invalid JSON in payload string.\n' + err.message);
+      }
+    }
+    return raw as T;
   }
 }
 

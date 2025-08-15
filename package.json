@@ -1,8 +1,8 @@
 {
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
-  "description": "Connect to different data stores using the Model Context Protocol.",
-  "version": "1.1.1",
+  "description": "Connect to different data stores using the Model Context Protocol (MCP).",
+  "version": "1.2.1",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",
@@ -14,11 +14,13 @@
     "graphql",
     "mcp",
     "model",
-    "mysql",
+    "mongodb",
     "mssql",
+    "mysql",
     "postgres",
     "sqlite",
-    "store"
+    "store",
+    "s3"
   ],
   "icon": "images/icon.png",
   "type": "module",
@@ -83,11 +85,11 @@
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "chokidar-cli": "^3.0.0",
-    "cpx": "^1.5.0",
     "eslint": "^9.32.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
     "@modelcontextprotocol/sdk": "^1.17.1",
     "fast-glob": "^3.3.3",
     "graphql": "^16.11.0",

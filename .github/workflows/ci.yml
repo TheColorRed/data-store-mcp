@@ -1,0 +1,30 @@
+name: Create Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run build
+        run: npx vsce package
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: data-store-mcp
+          path: '*.vsix'
