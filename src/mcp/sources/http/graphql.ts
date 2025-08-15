@@ -1,23 +1,22 @@
 import { getIntrospectionQuery, parse, Source } from 'graphql';
-import { ActionPayload, HttpDataSource } from '../database.js';
+import z from 'zod';
+import { BaseHttpPayload, HttpDataSource, type ActionRequest, type PayloadDescription } from '../../database-source.js';
 
-export interface GraphQLConfigOptions {
-  headers: Record<string, string>;
-  url: string;
-}
-
-export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
+export class GraphQL<P extends BaseHttpPayload> extends HttpDataSource {
   /**
    * Parse the GraphQL query string found in payload.payload into an AST.
    * Accepts either a parsed object or a JSON-encoded string containing `{ query }`.
    * @throws on invalid JSON or invalid GraphQL syntax
    * @param payload the action payload containing `payload.query`
    */
-  #parse(payload: ActionPayload) {
+  #parse(payload: P) {
     try {
       let rootPayload: Record<string, any>;
-      if (typeof payload.payload === 'string') rootPayload = JSON.parse(payload.payload ?? '{"query": ""}');
-      else rootPayload = payload.payload ?? { query: '' };
+      if (!payload.body)
+        throw new Error('Missing request body containing a `query` key and optionally a `variables` key.');
+
+      if (typeof payload.body === 'string') rootPayload = JSON.parse(payload.body ?? '{"query": ""}');
+      else rootPayload = payload.body ?? { query: '' };
       const source = new Source(rootPayload.query);
       return parse(source);
     } catch (error) {
@@ -30,11 +29,12 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
    * the GraphQL `query` and optional `variables`).
    * @param payload the action payload to validate
    */
-  #checkForPayload(payload: ActionPayload) {
-    if (!payload.payload)
+  #checkForPayload(payload: P) {
+    if (!payload)
       throw new Error(
         `A \`payload\` key is required for a graphql operation containing JSON with \`query\` and optionally \`variables\`.`
       );
+    if (!payload.body) throw new Error('A `body` key is required in the payload for GraphQL operations.');
   }
 
   /**
@@ -43,10 +43,10 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
    * type.
    * @param payload the action payload containing endpoint, headers and body
    */
-  #buildAndSendRequest(payload: ActionPayload) {
+  #buildAndSendRequest(payload: P) {
     return this.makeHttpRequest({
       ...payload,
-      endpoint: this.connectionConfig.options.url ?? payload.endpoint,
+      endpoint: this.connectionConfig.options.url,
       method: 'POST',
       headers: {
         ...payload.headers,
@@ -55,7 +55,12 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
       },
     });
   }
-
+  describePayload(): PayloadDescription {
+    return this.combinePayload({
+      query: z.string(),
+      variables: z.record(z.any()).optional(),
+    });
+  }
   /**
    * Execute a GraphQL query (read operation).
    *
@@ -63,7 +68,8 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
    * represents a `query` operation. Returns the result of the HTTP request.
    * @param payload the action payload containing the GraphQL query
    */
-  select(payload: ActionPayload): Promise<unknown> {
+  select(request: ActionRequest<P>): Promise<string> {
+    const payload = this.getPayloadObject(request);
     try {
       this.#checkForPayload(payload);
       const ast = this.#parse(payload);
@@ -78,7 +84,8 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
    * Execute a GraphQL mutation (create/update/delete operations).
    * @param payload the action payload containing the GraphQL mutation
    */
-  mutation(payload: ActionPayload): Promise<unknown> {
+  mutation(request: ActionRequest<P>): Promise<unknown> {
+    const payload = this.getPayloadObject(request);
     try {
       this.#checkForPayload(payload);
       return this.#buildAndSendRequest(payload);
@@ -86,14 +93,14 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
       throw new Error(error instanceof Error ? error.message : String(error));
     }
   }
-  insert(payload: ActionPayload): Promise<unknown> {
-    return this.mutation(payload);
+  insert(request: ActionRequest<P>): Promise<unknown> {
+    return this.mutation(request);
   }
-  update(payload: ActionPayload): Promise<unknown> {
-    return this.mutation(payload);
+  update(request: ActionRequest<P>): Promise<unknown> {
+    return this.mutation(request);
   }
-  delete(payload: ActionPayload): Promise<unknown> {
-    return this.mutation(payload);
+  delete(request: ActionRequest<P>): Promise<unknown> {
+    return this.mutation(request);
   }
   /**
    * Request GraphQL introspection and return the server schema.
@@ -101,14 +108,16 @@ export class GraphQL extends HttpDataSource<GraphQLConfigOptions> {
   showSchema(): Promise<unknown> {
     // Get GraphQL collection schema
     const query = getIntrospectionQuery();
+    const payload = this.getPayloadObject({}) as P;
     return this.makeHttpRequest({
+      ...payload,
       endpoint: this.connectionConfig.options.url,
       method: 'POST',
       headers: {
         ...this.connectionConfig.options.headers,
         'Content-Type': 'application/json',
       },
-      payload: JSON.stringify({ query }),
+      body: JSON.stringify({ query }),
     });
   }
   /** No-op connect for remote GraphQL endpoints. */

@@ -12,29 +12,8 @@ import glob from 'fast-glob';
 import fs from 'fs/promises';
 import os from 'os';
 import { z } from 'zod';
-import { DatabaseSourceConfig, DataSource, SqlDataSource } from './database.js';
-import { Crud, type CrudConfigOptions } from './sources/crud.js';
-import { GraphQL, type GraphQLConfigOptions } from './sources/graphql.js';
-import { MongoDB } from './sources/mongodb.js';
-import { MSSQL } from './sources/mssql.js';
-import { MySQL } from './sources/mysql.js';
-import { Postgres } from './sources/postgres.js';
-import { S3Source } from './sources/s3.js';
-import { SQLite } from './sources/sqlite.js';
-
-interface Folder {
-  // folder: string;
-  dbFile: string;
-  connections: {
-    id: string;
-    type: string;
-    options: {
-      [key: string]: any;
-    };
-  }[];
-}
-
-export type ToolType = 'select' | 'insert' | 'update' | 'delete' | 'schema' | 'mutation' | 'connections';
+import { SqlDataSource } from './database-source.js';
+import { folders, getSource, isAllowed, isAllowedError, returnText, type Folder } from './utilities/connection.js';
 
 const extensionRoot = process.argv[3];
 const workspaceFolders = JSON.parse(process.argv[2]);
@@ -49,101 +28,27 @@ console.error('connections:', globs);
 const isWindows = os.platform() === 'win32';
 const foldersInit: Folder[] = globs.map((file: string) => {
   file = isWindows ? file.replace(/\//g, '\\') : file;
-  return {
-    dbFile: file,
-    connections: [],
-  };
+  return { dbFile: file, connections: [] };
 });
 
-const folders = async () =>
-  await Promise.all(
-    foldersInit.map(async (folder: Folder) => {
-      try {
-        const data = await fs.readFile(folder.dbFile, 'utf-8');
-        folder.connections = JSON.parse(data) ?? [];
-      } catch (error) {
-        console.error(`Error reading file ${folder.dbFile}:`, error);
-        folder.connections = [];
-      }
-      return folder;
-    })
-  );
-
 const parameterInformation = await fs.readFile(`${extensionRoot}/docs/parameter-information.md`, 'utf-8');
+
 const server = new McpServer({
   name: 'Data Source MCP Server',
   version: '1.0.0',
-  capabilities: {
-    tools: {},
-  },
+  capabilities: { tools: {} },
 });
-
-/**
- * Checks if the given SQL query is a mutation (INSERT, UPDATE, DELETE).
- * @param sql SQL query string
- * @returns true if the SQL query is a mutation (INSERT, UPDATE, DELETE), false otherwise
- */
-const returnText = (...messages: (string | boolean)[]) => ({
-  content: messages.map(msg => ({
-    type: 'text',
-    text: typeof msg === 'boolean' ? (msg ? 'Success' : 'Failure') : msg ?? '',
-  })) as { type: 'text'; text: string }[],
-});
-
-const getSource = async (
-  connectionId: string
-): Promise<{ source: DataSource; connection: { id: string; type: string } }> => {
-  const connection = (await folders()).flatMap(folder => folder.connections).find(conn => conn.id === connectionId) as
-    | DatabaseSourceConfig
-    | undefined;
-  let source: DataSource;
-  if (!connection || !connection.id)
-    throw new Error(`Connection id not found: "${connectionId}". Try again using a different connection`);
-
-  // prettier-ignore
-  switch (connection.type) {
-    // SQL Data Sources
-    case 'mysql': source = new MySQL(connection); break;
-    case 'sqlite': source = new SQLite(connection); break;
-    case 'postgres': source = new Postgres(connection); break;
-    case 'mssql': source = new MSSQL(connection); break;
-    // HTTP Data Sources
-    case 'crud': source = new Crud(connection as DatabaseSourceConfig<CrudConfigOptions>); break;
-    case 'graphql': source = new GraphQL(connection as DatabaseSourceConfig<GraphQLConfigOptions>); break;
-    // NoSQL Data Sources
-    case 'mongodb': source = new MongoDB(connection); break;
-    // Other Data Sources
-    case 's3': source = new S3Source(connection); break;
-    default: throw new Error(`Unsupported data type: ${connection.type}`);
-  }
-  if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);
-  await source.connect(connection);
-  return { source, connection };
-};
-
-/**
- * Tools that are disallowed to run for the connection.
- * Options: 'select', 'insert', 'update', 'delete', 'schema', 'mutation'
- * @param options The options for the data source connection.
- */
-const isAllowed = (options: DatabaseSourceConfig, action: ToolType) => {
-  const disallowed = options.disallowedTools ?? [];
-  return !disallowed.includes(action);
-};
-
-const isAllowedError = (action: ToolType) =>
-  `Running the ${action} tool is not allowed for this connection as it is added to the 'disallowedTools' configuration file. Either remove it from the list or use a different connection.`;
 
 const toolActions = {
   connectionId: z.string(),
   // Database related options
-  sql: z.string().optional(),
+  // sql: z.string().optional(),
   // HTTP related options
   // payload is either a string or object
   payload: z.union([z.record(z.any()), z.string()]).optional(),
-  endpoint: z.string().optional(),
-  method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional(),
-  headers: z.record(z.string()).optional(),
+  // endpoint: z.string().optional(),
+  // method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional(),
+  // headers: z.record(z.string()).optional(),
 };
 
 // This tool lists all available data source connections.
@@ -153,7 +58,7 @@ server.tool(
   async () => {
     const connections = await Promise.all(
       (
-        await folders()
+        await folders(foldersInit)
       ).map<Promise<{ id: string; type: string }>>(async folder => {
         const data = JSON.parse(await fs.readFile(folder.dbFile, 'utf-8'));
         folder.connections = data ?? [];
@@ -168,7 +73,7 @@ server.tool(
     //   - id-1: .vscode/example.store.json
     //   - id-2: .vscode/another.store.json
     const connectionIds = new Map<string, string[]>();
-    const folders2 = await folders();
+    const folders2 = await folders(foldersInit);
     connections.forEach((conn, index) => {
       const id = Array.isArray(conn) ? conn[0].id : conn.id;
       if (!connectionIds.has(id)) connectionIds.set(id, []);
@@ -187,6 +92,19 @@ server.tool(
   }
 );
 
+server.tool(
+  'payload',
+  'The payload for the data source. This is used to provide additional information so the source knows how to understand the payload that should be sent.',
+  {
+    connectionId: z.string(),
+  },
+  async actions => {
+    const { source } = await getSource(actions.connectionId, foldersInit);
+    const payload = source.describePayload();
+    return returnText(parameterInformation);
+  }
+);
+
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
@@ -196,7 +114,7 @@ server.tool(
     tableName: z.string().optional(),
   },
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'schema')) throw new Error(isAllowedError('schema'));
 
@@ -206,7 +124,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to get schema from data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );
@@ -218,7 +136,7 @@ server.tool(
   `Allows for the ability to run any type of query, this is un-restrictive.\n${parameterInformation}`,
   toolActions,
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'mutation')) throw new Error(isAllowedError('mutation'));
 
@@ -228,7 +146,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run mutation on data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );
@@ -240,11 +158,11 @@ server.tool(
   `Runs a select query on the data source selecting data from the data source.\n${parameterInformation}`,
   toolActions,
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'select')) throw new Error(isAllowedError('select'));
 
-    if (source instanceof SqlDataSource && !source.isSelect({ sql: actions.sql }))
+    if (source instanceof SqlDataSource && !source.isSelect(actions))
       return returnText('The provided SQL query is not a SELECT statement.');
 
     let result;
@@ -253,7 +171,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run select on data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );
@@ -265,11 +183,11 @@ server.tool(
   `Runs an insert query on the data source inserting data into the data source.\n${parameterInformation}`,
   toolActions,
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'insert')) throw new Error(isAllowedError('insert'));
 
-    if (source instanceof SqlDataSource && !source.isInsert({ sql: actions.sql }))
+    if (source instanceof SqlDataSource && !source.isInsert(actions))
       return returnText('The provided SQL query is not an INSERT statement.');
 
     let result;
@@ -278,7 +196,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run insert on data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );
@@ -290,11 +208,11 @@ server.tool(
   `Runs an update query on the data source updating data in the data source.\n${parameterInformation}`,
   toolActions,
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'update')) throw new Error(isAllowedError('update'));
 
-    if (source instanceof SqlDataSource && !source.isUpdate({ sql: actions.sql }))
+    if (source instanceof SqlDataSource && !source.isUpdate(actions))
       return returnText('The provided SQL query is not an UPDATE statement.');
 
     let result;
@@ -303,7 +221,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run update on data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );
@@ -315,11 +233,11 @@ server.tool(
   `Runs a delete query on the data source deleting data from the data source.\n${parameterInformation}`,
   toolActions,
   async actions => {
-    const { source } = await getSource(actions.connectionId);
+    const { source } = await getSource(actions.connectionId, foldersInit);
 
     if (!isAllowed(source.connectionConfig, 'delete')) throw new Error(isAllowedError('delete'));
 
-    if (source instanceof SqlDataSource && !source.isDelete({ sql: actions.sql }))
+    if (source instanceof SqlDataSource && !source.isDelete(actions))
       return returnText('The provided SQL query is not a DELETE statement.');
 
     let result;
@@ -328,7 +246,7 @@ server.tool(
     } catch (error) {
       return returnText('Failed to run delete on data source. ' + (error as Error).message);
     }
-    source.close(actions);
+    source.close();
     return returnText(JSON.stringify(result));
   }
 );

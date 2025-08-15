@@ -1,5 +1,11 @@
 import mysql, { type Connection, type ConnectionOptions } from 'mysql2/promise';
-import { SqlDataSource, TablePayload, type ActionPayload, type DatabaseSourceConfig } from '../database.js';
+import z from 'zod';
+import {
+  SqlDataSource,
+  type ActionRequest,
+  type DatabaseBasePayload,
+  type PayloadDescription,
+} from '../../database-source.js';
 
 /**
  * MySQL data source implementation using `mysql2/promise`.
@@ -9,13 +15,18 @@ import { SqlDataSource, TablePayload, type ActionPayload, type DatabaseSourceCon
  * inspection helper. Methods return raw driver results and may throw when
  * the provided SQL does not match the expected statement type.
  */
-export class MySQL extends SqlDataSource {
+export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
   /** The active MySQL connection, set by `connect()` */
   private connection?: Connection;
-
-  async connect(config: DatabaseSourceConfig): Promise<void> {
+  describePayload(): PayloadDescription {
+    return {
+      sql: z.string(),
+      params: z.record(z.any()).optional(),
+    };
+  }
+  async connect(): Promise<void> {
     // ensure there's a reasonable connect timeout and attach an error handler
-    const opts = { ...(config.options as ConnectionOptions) } as ConnectionOptions;
+    const opts = { ...(this.connectionConfig.options as ConnectionOptions) } as ConnectionOptions;
     if (opts.connectTimeout === undefined || opts.connectTimeout === null) opts.connectTimeout = 10000; // 10s default
     this.connection = await mysql.createConnection(opts);
     // prevent uncaught exceptions from leaving sockets open
@@ -33,8 +44,10 @@ export class MySQL extends SqlDataSource {
    * @param payload an ActionPayload containing `sql` and optional `params`
    * @returns Promise resolving to the driver result (shape depends on query)
    */
-  async mutation(payload: ActionPayload): Promise<any> {
-    const [result] = (await this.connection?.execute(payload.sql ?? '', payload.params)) ?? [];
+  async mutation(request: ActionRequest<P>): Promise<any> {
+    const payload = this.getPayloadObject(request);
+    if (!payload.sql) throw new Error('SQL query is required for mutation.');
+    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
     return result;
   }
   /**
@@ -48,9 +61,11 @@ export class MySQL extends SqlDataSource {
    * @throws if the provided SQL is not a SELECT statement
    * @returns Promise resolving to the rows returned by the query
    */
-  async select(payload: ActionPayload): Promise<any> {
-    if (!this.isSelect(payload)) throw new Error('The provided SQL query is not a SELECT statement.');
-    const [rows] = (await this.connection?.query(payload.sql ?? '', payload.params)) ?? [];
+  async select(request: ActionRequest<P>): Promise<any> {
+    if (!this.isSelect(request)) throw new Error('The provided SQL query is not a SELECT statement.');
+    const payload = this.getPayloadObject(request);
+    if (!payload.sql) throw new Error('SQL query is required for select.');
+    const [rows] = (await this.connection?.query(payload.sql, payload.params)) ?? [];
     return rows;
   }
   /**
@@ -63,9 +78,11 @@ export class MySQL extends SqlDataSource {
    * @throws if the provided SQL is not an INSERT statement
    * @returns Promise resolving to the driver execute result
    */
-  async insert(payload: ActionPayload): Promise<any> {
-    if (!this.isInsert(payload)) throw new Error('The provided SQL query is not an INSERT statement.');
-    const [result] = (await this.connection?.execute(payload.sql ?? '', payload.params)) ?? [];
+  async insert(request: ActionRequest<P>): Promise<any> {
+    if (!this.isInsert(request)) throw new Error('The provided SQL query is not an INSERT statement.');
+    const payload = this.getPayloadObject(request);
+    if (!payload.sql) throw new Error('SQL query is required for insert.');
+    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
     return result;
   }
   /**
@@ -78,9 +95,11 @@ export class MySQL extends SqlDataSource {
    * @throws if the provided SQL is not an UPDATE statement
    * @returns Promise resolving to the driver execute result
    */
-  async update(payload: ActionPayload): Promise<any> {
-    if (!this.isUpdate(payload)) throw new Error('The provided SQL query is not an UPDATE statement.');
-    const [result] = (await this.connection?.execute(payload.sql ?? '', payload.params)) ?? [];
+  async update(request: ActionRequest<P>): Promise<any> {
+    if (!this.isUpdate(request)) throw new Error('The provided SQL query is not an UPDATE statement.');
+    const payload = this.getPayloadObject(request);
+    if (!payload.sql) throw new Error('SQL query is required for update.');
+    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
     return result;
   }
   /**
@@ -92,9 +111,11 @@ export class MySQL extends SqlDataSource {
    * @throws if the provided SQL is not a DELETE statement
    * @returns Promise resolving to the driver execute result
    */
-  async delete(payload: ActionPayload): Promise<any> {
-    if (!this.isDelete(payload)) throw new Error('The provided SQL query is not a DELETE statement.');
-    const [result] = (await this.connection?.execute(payload.sql ?? '', payload.params)) ?? [];
+  async delete(request: ActionRequest<P>): Promise<any> {
+    if (!this.isDelete(request)) throw new Error('The provided SQL query is not a DELETE statement.');
+    const payload = this.getPayloadObject(request);
+    if (!payload.sql) throw new Error('SQL query is required for delete.');
+    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
     return result;
   }
   /**
@@ -105,12 +126,13 @@ export class MySQL extends SqlDataSource {
    * tables, procedures and functions for the current database and returns an
    * array of schema objects.
    *
-   * @param payload - optional ActionPayload with `tableName` to limit the result
+   * @param request - optional ActionPayload with `tableName` to limit the result
    * @returns Promise resolving to either a single table's create statement or
    *          an array of schema objects for tables, procedures and functions
    */
-  async showSchema(payload?: ActionPayload<TablePayload>): Promise<any> {
-    const tableName = payload?.tableName;
+  async showSchema(request: ActionRequest<P>): Promise<any> {
+    const payload = this.getPayloadObject(request);
+    const tableName = payload.tableName;
     if (tableName) {
       const [rows] = (await this.connection?.query('SHOW CREATE TABLE ??', [tableName])) ?? [];
       return rows;

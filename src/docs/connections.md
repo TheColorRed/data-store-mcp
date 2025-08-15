@@ -3,7 +3,8 @@
 This document will explain how the subsequent tools need to interact with data store tools so you can make as few mistakes as possible and call the tools with the correct parameters the first time without guesswork.
 
 1. Once the appropriate connection(s) are selected, you should output the connection ID(s) to the user.
-2. After running this tool, you should always understand the schema by calling the `#schema` tool with the appropriate parameters if you don't already have the schema information.
+2. After running the `#connections` tool, you should run the `#payload` tool to get the payload information for the selected data store type. Each payload has different information that needs to be sent to it.
+3. After running the `#payload` tool, you should always understand the schema by calling the `#schema` tool with the appropriate parameters if you don't already have the schema information.
 
 # Workflow
 
@@ -12,9 +13,10 @@ This document will explain how the subsequent tools need to interact with data s
 3. If you have to guess, ask the user for clarification.
    1. List all of the connections that might be relevant to the user, while hiding any sensitive information.
    2. Ask the user to select the connection they want to use.
-4. Use the `#schema` tool to get the schema of the data source.
-5. Do a search on the data source to get the specific data you need, as you do not know what is contained in the data source. Do not guess on what values are needed to make the next query/queries. Either use the input provided by the user or do a lookup on the data source using one or more `#select` tools.
-6. Use the appropriate tool to run the desired operation(s) for the users request.
+4. Use the `#payload` tool to get the payload information for the selected data store type.
+5. Use the `#schema` tool to get the schema of the data source.
+6. Do a search on the data source to get the specific data you need, as you do not know what is contained in the data source. Do not guess on what values are needed to make the next query/queries. Either use the input provided by the user or do a lookup on the data source using one or more `#select` tools.
+7. Use the appropriate tool to run the desired operation(s) for the users request.
 
 ## GraphQL
 
