@@ -12,24 +12,23 @@ import glob from 'fast-glob';
 import fs from 'fs/promises';
 import os from 'os';
 import { z } from 'zod';
-import { SqlDataSource } from './database-source.js';
+import { ResponseType, SqlDataSource, type ReturnType } from './database-source.js';
 import { folders, getSource, isAllowed, isAllowedError, returnText, type Folder } from './utilities/connection.js';
 
 const extensionRoot = process.argv[3];
 const workspaceFolders = JSON.parse(process.argv[2]);
 const foldersIn: string[] = workspaceFolders.map((f: string) => f.replace(/\\/g, '/'));
-const globs = await glob(
-  foldersIn.map(f => [`${f}/.vscode/{connections,stores}.json`, `${f}/.vscode/*.{connection,store}.json`]).flat()
-);
-
-console.error('extension root:', extensionRoot);
-console.error('connections:', globs);
 
 const isWindows = os.platform() === 'win32';
-const foldersInit: Folder[] = globs.map((file: string) => {
-  file = isWindows ? file.replace(/\//g, '\\') : file;
-  return { dbFile: file, connections: [] };
-});
+const getFolders = async (): Promise<Folder[]> => {
+  const files = await glob(
+    foldersIn.map(f => [`${f}/.vscode/{connections,stores}.json`, `${f}/.vscode/*.{connection,store}.json`]).flat()
+  );
+  return files.map((file: string) => {
+    file = isWindows ? file.replace(/\//g, '\\') : file;
+    return { dbFile: file, connections: [] };
+  });
+};
 
 const parameterInformation = await fs.readFile(`${extensionRoot}/docs/parameter-information.md`, 'utf-8');
 
@@ -41,14 +40,7 @@ const server = new McpServer({
 
 const toolActions = {
   connectionId: z.string(),
-  // Database related options
-  // sql: z.string().optional(),
-  // HTTP related options
-  // payload is either a string or object
-  payload: z.union([z.record(z.any()), z.string()]).optional(),
-  // endpoint: z.string().optional(),
-  // method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional(),
-  // headers: z.record(z.string()).optional(),
+  payload: z.union([z.record(z.any()), z.string()]),
 };
 
 // This tool lists all available data source connections.
@@ -58,7 +50,7 @@ server.tool(
   async () => {
     const connections = await Promise.all(
       (
-        await folders(foldersInit)
+        await folders(await getFolders())
       ).map<Promise<{ id: string; type: string }>>(async folder => {
         const data = JSON.parse(await fs.readFile(folder.dbFile, 'utf-8'));
         folder.connections = data ?? [];
@@ -73,7 +65,7 @@ server.tool(
     //   - id-1: .vscode/example.store.json
     //   - id-2: .vscode/another.store.json
     const connectionIds = new Map<string, string[]>();
-    const folders2 = await folders(foldersInit);
+    const folders2 = await folders(await getFolders());
     connections.forEach((conn, index) => {
       const id = Array.isArray(conn) ? conn[0].id : conn.id;
       if (!connectionIds.has(id)) connectionIds.set(id, []);
@@ -88,44 +80,51 @@ server.tool(
     }
 
     const docs = await fs.readFile(`${extensionRoot}/docs/connections.md`, 'utf-8');
-    return returnText(JSON.stringify(connections), docs);
+    return returnText(JSON.stringify(connections), docs, parameterInformation);
   }
 );
 
 server.tool(
   'payload',
-  'The payload for the data source. This is used to provide additional information so the source knows how to understand the payload that should be sent.',
+  'The payload for the data source. This should always be run after the `#connections` tool. This is used to provide additional information so the source knows how to understand the payload that should be sent.',
   {
     connectionId: z.string(),
   },
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
-    const payload = source.describePayload();
-    return returnText(parameterInformation);
+  async request => {
+    let payload: string | ResponseType = '';
+    try {
+      const { source } = await getSource(request, await getFolders(), false);
+      payload = source.describePayload() as ResponseType;
+      source.close();
+    } catch {}
+    return returnText(
+      `The following is the payload information for the data source, this is how it should be structured when making a request:`,
+      payload
+    );
   }
 );
 
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
-  'Lists the schema of a specific table/collection if `tableName` is provided. Otherwise gets the schema of all tables/collections.',
+  'Lists the schema of a specific table/collection if `tableName` is provided within the payload. This should always be run after the `#payload` tool and when the schema is not currently know for the data source. Otherwise gets the schema of all tables/collections.',
   {
-    connectionId: z.string(),
-    tableName: z.string().optional(),
+    ...toolActions,
+    payload: toolActions.payload.optional(),
   },
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'schema')) throw new Error(isAllowedError('schema'));
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.showSchema(actions);
+      result = await source.showSchema();
     } catch (error) {
       return returnText('Failed to get schema from data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 
@@ -135,19 +134,19 @@ server.tool(
   'mutation',
   `Allows for the ability to run any type of query, this is un-restrictive.\n${parameterInformation}`,
   toolActions,
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'mutation')) throw new Error(isAllowedError('mutation'));
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.mutation(actions);
+      result = await source.mutation();
     } catch (error) {
       return returnText('Failed to run mutation on data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 
@@ -157,22 +156,22 @@ server.tool(
   'select',
   `Runs a select query on the data source selecting data from the data source.\n${parameterInformation}`,
   toolActions,
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'select')) throw new Error(isAllowedError('select'));
 
-    if (source instanceof SqlDataSource && !source.isSelect(actions))
+    if (source instanceof SqlDataSource && !source.isSelect())
       return returnText('The provided SQL query is not a SELECT statement.');
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.select(actions);
+      result = await source.select();
     } catch (error) {
       return returnText('Failed to run select on data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 
@@ -182,22 +181,22 @@ server.tool(
   'insert',
   `Runs an insert query on the data source inserting data into the data source.\n${parameterInformation}`,
   toolActions,
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'insert')) throw new Error(isAllowedError('insert'));
 
-    if (source instanceof SqlDataSource && !source.isInsert(actions))
+    if (source instanceof SqlDataSource && !source.isInsert())
       return returnText('The provided SQL query is not an INSERT statement.');
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.insert(actions);
+      result = await source.insert();
     } catch (error) {
       return returnText('Failed to run insert on data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 
@@ -207,22 +206,22 @@ server.tool(
   'update',
   `Runs an update query on the data source updating data in the data source.\n${parameterInformation}`,
   toolActions,
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'update')) throw new Error(isAllowedError('update'));
 
-    if (source instanceof SqlDataSource && !source.isUpdate(actions))
+    if (source instanceof SqlDataSource && !source.isUpdate())
       return returnText('The provided SQL query is not an UPDATE statement.');
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.update(actions);
+      result = await source.update();
     } catch (error) {
       return returnText('Failed to run update on data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 
@@ -232,22 +231,22 @@ server.tool(
   'delete',
   `Runs a delete query on the data source deleting data from the data source.\n${parameterInformation}`,
   toolActions,
-  async actions => {
-    const { source } = await getSource(actions.connectionId, foldersInit);
+  async request => {
+    const { source } = await getSource(request, await getFolders());
 
     if (!isAllowed(source.connectionConfig, 'delete')) throw new Error(isAllowedError('delete'));
 
-    if (source instanceof SqlDataSource && !source.isDelete(actions))
+    if (source instanceof SqlDataSource && !source.isDelete())
       return returnText('The provided SQL query is not a DELETE statement.');
 
-    let result;
+    let result: ReturnType;
     try {
-      result = await source.delete(actions);
+      result = await source.delete();
     } catch (error) {
       return returnText('Failed to run delete on data source. ' + (error as Error).message);
     }
     source.close();
-    return returnText(JSON.stringify(result));
+    return returnText(result);
   }
 );
 

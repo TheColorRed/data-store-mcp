@@ -1,13 +1,13 @@
 import mongodb from 'mongodb';
 import z from 'zod';
-import { NoSqlDataSource, type ActionRequest, type PayloadDescription } from '../../database-source.js';
+import { NoSqlDataSource, type PayloadDescription } from '../../database-source.js';
 
 export interface MongoDbConfig {
   url: string;
   options: mongodb.MongoClientOptions;
 }
 
-export interface MongoDbPayload {
+export interface MongoPayload {
   method: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DELETE_TABLE';
   tableName: string;
   filter: { [key: string]: any };
@@ -25,28 +25,17 @@ export interface MongoDbPayload {
  * handle on `this.db`. Call `connect()` before issuing queries and `close()`
  * when finished to release sockets.
  */
-export class MongoDB<P extends MongoDbPayload> extends NoSqlDataSource {
+export class MongoDB<P extends MongoPayload> extends NoSqlDataSource<P> {
   client?: mongodb.MongoClient | undefined;
   db?: mongodb.Db | undefined;
-  /**
-   * Return a helpful payload error message describing the expected payload shape.
-   * @returns A human-readable error string explaining the required `payload` format
-   */
-  #payloadError() {
-    return `A valid \`payload\` key should be formatted as an object like this:
-    {
-      "method": "SELECT" | "INSERT" | "UPDATE" | "DELETE" | "DELETE_TABLE", // Required
-      "tableName": "collection_name", // Required
-      "filter": { "key": "value" }, // Required
-      "value": { "key": "value" }, // Optional
-    }`;
-  }
-  describePayload(): PayloadDescription {
+  describePayload(): PayloadDescription<MongoPayload> {
     return {
-      method: z.enum(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DELETE_TABLE']),
-      tableName: z.string(),
-      filter: z.record(z.any()),
-      value: z.record(z.any()).optional(),
+      method: z
+        .enum(['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DELETE_TABLE'])
+        .describe('The operation to perform on the collection.'),
+      tableName: z.string().describe('The name of the collection to operate on.'),
+      filter: z.record(z.any()).describe('The filter to apply to the collection.'),
+      value: z.record(z.any()).optional().describe('The value to insert or update in the collection.'),
     };
   }
   async connect(): Promise<void> {
@@ -78,8 +67,8 @@ export class MongoDB<P extends MongoDbPayload> extends NoSqlDataSource {
    * collections when no `tableName` is provided.
    * @param payload optional payload with `tableName` to restrict results
    */
-  async showSchema(request: ActionRequest<P>): Promise<unknown> {
-    const table = request.payload?.tableName ?? '';
+  async showSchema(): Promise<object> {
+    const table = this.payload?.tableName ?? '';
     if (table) {
       return {
         tableName: table,
@@ -111,34 +100,28 @@ export class MongoDB<P extends MongoDbPayload> extends NoSqlDataSource {
    * return the resulting documents array.
    * @param payload payload containing method, tableName, filter, and value
    */
-  async select(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-
+  async select(): Promise<object> {
     if (!this.db) throw new Error('Database not found.');
-    if (!payload) throw new Error(this.#payloadError());
-    if (!payload.tableName) throw new Error('Missing key `tableName`. This is the collection that you want to query.');
-    if (!payload.filter) throw new Error(this.#payloadError());
+    if (!this.payload) throw new Error(this.getPayloadMissingKeyError());
+    if (!this.payload.tableName) throw new Error(this.getPayloadMissingKeyError('tableName'));
+    if (!this.payload.filter) throw new Error(this.getPayloadMissingKeyError('filter'));
 
-    const collection = this.db?.collection(payload.tableName);
-    return (await collection?.find(payload.filter).toArray()) ?? [];
+    const collection = this.db?.collection(this.payload.tableName);
+    return (await collection?.find(this.payload.filter).toArray()) ?? [];
   }
   /**
-   * Dispatch a MongoDB style action based on `method` in the payload. Supports
+   * Dispatch a MongoDB style action based on `method` in the this.payload. Supports
    * SELECT, INSERT, UPDATE, DELETE and DELETE_TABLE.
    * @param payload action payload with `method` and other parameters
    */
-  async mutation(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
+  async mutation(): Promise<object | boolean> {
+    if (this.payload.method === 'SELECT') return this.select();
+    else if (this.payload.method === 'INSERT') return this.insert();
+    else if (this.payload.method === 'UPDATE') return this.update();
+    else if (this.payload.method === 'DELETE') return this.delete();
+    else if (this.payload.method === 'DELETE_TABLE') return this.dropTable();
 
-    if (payload.method === 'SELECT') return this.select(request);
-    else if (payload.method === 'INSERT') return this.insert(request);
-    else if (payload.method === 'UPDATE') return this.update(request);
-    else if (payload.method === 'DELETE') return this.delete(request);
-    else if (payload.method === 'DELETE_TABLE') return this.dropTable(request);
-
-    throw new Error(
-      `Unsupported method: ${payload.method} expected \`SELECT\`, \`INSERT\`, \`UPDATE\`, \`DELETE\`, or \`DELETE_TABLE\`.`
-    );
+    throw new Error(this.getPayloadInvalidValueError(this.payload.method));
   }
 
   /** Drop (delete) the specified collection from the database. */
@@ -146,14 +129,12 @@ export class MongoDB<P extends MongoDbPayload> extends NoSqlDataSource {
    * Drop (delete) the specified collection from the database.
    * @param payload payload containing `tableName` of the collection to drop
    */
-  async dropTable(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-
+  async dropTable(): Promise<boolean> {
     if (!this.db) throw new Error('Database not found.');
-    if (!payload) throw new Error(this.#payloadError());
-    if (!payload.tableName) throw new Error(`Missing key \`tableName\`.\n${this.#payloadError()}`);
+    if (!this.payload) throw new Error(this.getPayloadMissingKeyError());
+    if (!this.payload.tableName) throw new Error(this.getPayloadMissingKeyError('tableName'));
 
-    const collection = this.db.collection(payload.tableName);
+    const collection = this.db.collection(this.payload.tableName);
     return collection.drop();
   }
 
@@ -161,78 +142,67 @@ export class MongoDB<P extends MongoDbPayload> extends NoSqlDataSource {
    * Insert a single document or an array of documents into a collection.
    * @param payload payload containing `tableName` and `value` to insert
    */
-  async insert(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-
+  async insert(): Promise<object> {
     if (!this.db) throw new Error('Database not found.');
-    if (!payload) throw new Error(this.#payloadError());
-    if (!payload.value) throw new Error(`Missing key \`value\`.\n${this.#payloadError()}`);
+    if (!this.payload) throw new Error(this.getPayloadMissingKeyError());
+    if (!this.payload.value) throw new Error(this.getPayloadMissingKeyError('value'));
 
-    const collection = this.db?.collection(payload.tableName);
-    if (Array.isArray(payload.value)) return collection?.insertMany(payload.value);
-    return collection?.insertOne(payload.value);
+    const collection = this.db?.collection(this.payload.tableName);
+    if (Array.isArray(this.payload.value)) return collection?.insertMany(this.payload.value);
+    return collection?.insertOne(this.payload.value);
   }
   /**
    * Update documents matching `filter` with the provided `value` document.
    * @param payload payload containing `tableName`, `filter`, and `value`
    */
-  async update(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-
+  async update(): Promise<object> {
     if (!this.db) throw new Error('Database not found.');
-    if (!payload) throw new Error(this.#payloadError());
-    if (!payload.filter) throw new Error(`Missing key \`filter\`.\n${this.#payloadError()}`);
-    if (!payload.value) throw new Error(`Missing key \`value\`.\n${this.#payloadError()}`);
+    if (!this.payload) throw new Error(this.getPayloadMissingKeyError());
+    if (!this.payload.filter) throw new Error(this.getPayloadMissingKeyError('filter'));
+    if (!this.payload.value) throw new Error(this.getPayloadMissingKeyError('value'));
 
-    const collection = this.db?.collection(payload.tableName);
-    if (Array.isArray(payload.value)) return collection?.updateOne(payload.filter, payload.value);
-    return collection?.updateMany(payload.filter, payload.value);
+    const collection = this.db?.collection(this.payload.tableName);
+    if (Array.isArray(this.payload.value)) return collection?.updateOne(this.payload.filter, this.payload.value);
+    return collection?.updateMany(this.payload.filter, this.payload.value);
   }
   /**
    * Delete documents matching `filter` (supports array of filters for `$or`).
    * @param payload payload containing `tableName` and `filter`
    */
-  async delete(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-
+  async delete(): Promise<object> {
     if (!this.db) throw new Error('Database not found.');
-    if (!payload) throw new Error(this.#payloadError());
-    if (!payload.tableName) throw new Error(`Missing key \`tableName\`.\n${this.#payloadError()}`);
-    if (!payload.filter) throw new Error(`Missing key \`filter\`.\n${this.#payloadError()}`);
+    if (!this.payload) throw new Error(this.getPayloadMissingKeyError());
+    if (!this.payload.tableName) throw new Error(this.getPayloadMissingKeyError('tableName'));
+    if (!this.payload.filter) throw new Error(this.getPayloadMissingKeyError('filter'));
 
-    const collection = this.db?.collection(payload.tableName);
-    if (Array.isArray(payload.filter)) return collection?.deleteMany({ $or: payload.filter });
-    return collection?.deleteMany(payload.filter);
+    const collection = this.db?.collection(this.payload.tableName);
+    if (Array.isArray(this.payload.filter)) return collection?.deleteMany({ $or: this.payload.filter });
+    return collection?.deleteMany(this.payload.filter);
   }
-  isMutation(request: ActionRequest<P>): Promise<boolean> | boolean {
+  isMutation(): Promise<boolean> | boolean {
     /**
      * Check whether the payload represents a mutation (insert/update/delete).
      * @param payload The action payload to inspect
      * @returns true when the payload method is a mutation
      */
-    const payloadObj = this.getPayloadObject(request);
     return (
-      payloadObj.method === 'INSERT' ||
-      payloadObj.method === 'UPDATE' ||
-      payloadObj.method === 'DELETE' ||
-      payloadObj.method === 'DELETE_TABLE'
+      this.payload.method === 'INSERT' ||
+      this.payload.method === 'UPDATE' ||
+      this.payload.method === 'DELETE' ||
+      this.payload.method === 'DELETE_TABLE'
     );
   }
-  isSelect(request: ActionRequest<P>): Promise<boolean> | boolean {
-    const payload = this.getPayloadObject(request);
-    return payload.method === 'SELECT';
+  isSelect(): Promise<boolean> | boolean {
+    return this.payload.method === 'SELECT';
   }
-  isInsert(request: ActionRequest<P>): Promise<boolean> | boolean {
-    const payload = this.getPayloadObject(request);
-    return payload.method === 'INSERT';
+  isInsert(): Promise<boolean> | boolean {
+    return this.payload.method === 'INSERT';
   }
-  isUpdate(request: ActionRequest<P>): Promise<boolean> | boolean {
-    const payload = this.getPayloadObject(request);
-    return payload.method === 'UPDATE';
+  isUpdate(): Promise<boolean> | boolean {
+    return this.payload.method === 'UPDATE';
   }
-  isDelete(request: ActionRequest<P>): Promise<boolean> | boolean {
-    const payload = this.getPayloadObject(request);
-    return payload.method === 'DELETE';
+  isDelete(): Promise<boolean> | boolean {
+    return this.payload.method === 'DELETE';
   }
   async close(): Promise<void> {
     if (!this.client) return;

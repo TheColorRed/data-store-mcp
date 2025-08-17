@@ -5,9 +5,10 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs/promises';
 import z from 'zod';
-import { UnknownDataSource, type ActionRequest, type PayloadDescription } from '../../database-source.js';
+import { UnknownDataSource, type PayloadDescription } from '../../database-source.js';
 
 export interface S3Config {
   region: string;
@@ -26,7 +27,7 @@ export interface S3Payload {
   maxResults?: number;
 }
 
-export class S3Source<P extends S3Payload> extends UnknownDataSource {
+export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
   client?: S3Client;
   #getS3Client() {
     const payload = this.connectionConfig.options.connection as S3Config;
@@ -41,30 +42,20 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource {
       },
     });
   }
-  #getPayloadError() {
-    return `A valid \`payload\` key should be formatted as an object like this:
-    {
-      "method": "GET" | "SELECT" | "INSERT" | "UPDATE" | "DELETE", // Required
-      "bucket": "your-bucket-name", // Required
-      "key": "path/to/your/object", // Required for SELECT, INSERT, UPDATE, DELETE
-      "sourceType": "path" | "raw", // Optional, used for INSERT, UPDATE
-      "sourceValue": "path/to/your/file" // Optional, used for INSERT
-    }`;
-  }
-  #getBucket(request: ActionRequest<P>) {
-    const payloadObject = this.getPayloadObject(request);
+  #getBucket() {
+    const payloadObject = this.payload;
     return payloadObject.bucket ?? this.connectionConfig.options.bucket ?? '';
   }
-  #validatePayload(request: ActionRequest<P>) {
-    const bucket = this.#getBucket(request);
-    const payloadObject = this.getPayloadObject(request);
-    if (!bucket) throw new Error(`Missing key \`bucket\`.\n${this.#getPayloadError()}`);
-    if (!payloadObject.key) throw new Error(`Missing key \`key\`.\n${this.#getPayloadError()}`);
-    if (!payloadObject.method) throw new Error(`Missing key \`method\`.\n${this.#getPayloadError()}`);
+  #validatePayload() {
+    const bucket = this.#getBucket();
+    const payloadObject = this.payload;
+    if (bucket.length === 0) throw new Error(this.getPayloadMissingKeyError('bucket'));
+    if (typeof payloadObject.key === 'undefined') throw new Error(this.getPayloadMissingKeyError('key'));
+    if (typeof payloadObject.method === 'undefined') throw new Error(this.getPayloadMissingKeyError('method'));
 
     if (payloadObject.method === 'INSERT' || payloadObject.method === 'UPDATE') {
-      if (!payloadObject.sourceType) throw new Error(`Missing key \`sourceType\`.\n${this.#getPayloadError()}`);
-      if (!payloadObject.sourceValue) throw new Error(`Missing key \`sourceValue\`.\n${this.#getPayloadError()}`);
+      if (!payloadObject.sourceType) throw new Error(this.getPayloadMissingKeyError('sourceType'));
+      if (!payloadObject.sourceValue) throw new Error(this.getPayloadMissingKeyError('sourceValue'));
     }
 
     return {
@@ -72,35 +63,51 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource {
       bucket,
     };
   }
-  describePayload(): PayloadDescription {
+  describePayload(): PayloadDescription<S3Payload> {
     return {
-      method: z.enum(['GET', 'SELECT', 'INSERT', 'UPDATE', 'DELETE']),
-      bucket: z.string(),
-      key: z.string(),
-      sourceType: z.enum(['path', 'raw']),
-      sourceValue: z.string(),
-      maxResults: z.number().min(1).default(100),
+      method: z.enum(['GET', 'SELECT', 'INSERT', 'UPDATE', 'DELETE']).describe(`The operation to perform.
+        \`GET\` - Gets the objects information.
+        \`SELECT\` - Selects objects from a bucket.
+        \`INSERT\` - Inserts an item into a bucket.
+        \`UPDATE\` - Updates an item in a bucket.
+        \`DELETE\` - Deletes an item from a bucket.`),
+      bucket: z.string().describe('The S3 bucket name.'),
+      key: z.string().describe('The S3 object key or object prefix.'),
+      sourceType: z.enum(['path', 'raw']).describe('The source type of the value for INSERT or UPDATE operations.'),
+      sourceValue: z
+        .string()
+        .describe(
+          'The value to be inserted or updated. If `sourceType` is `path`, this should be a file path. If `sourceType` is raw, this is the raw data.'
+        ),
+      maxResults: z.number().min(1).default(100).describe('The maximum number of results to return.'),
     };
   }
   connect(): Promise<void> {
     this.client = this.#getS3Client();
     return Promise.resolve();
   }
-  async select(request: ActionRequest<P>): Promise<unknown> {
+  async select(): Promise<object> {
     if (!this.client) await this.connect();
-    const payloadObject = this.#validatePayload(request);
+    if (!this.client) throw new Error('S3 client not initialized');
+    const payloadObject = this.#validatePayload();
 
-    if (payloadObject.method === 'SELECT') return this.showSchema(request);
+    if (payloadObject.method === 'SELECT') return this.showSchema();
 
-    const result = await this.client?.send(
-      new GetObjectCommand({
-        Bucket: payloadObject.bucket,
-        Key: payloadObject.key,
-      })
-    );
+    const command = new GetObjectCommand({
+      Bucket: payloadObject.bucket,
+      Key: payloadObject.key,
+    });
+
+    const signedUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
+    const url = new URL(signedUrl);
+    const result = await this.client.send(command);
+    const body = await result?.Body?.transformToString();
 
     return {
-      bodyString: await result?.Body?.transformToString(),
+      signedUrl,
+      url: `${url.origin}${url.pathname}`,
+      path: url.pathname,
+      body,
       contentType: result?.ContentType,
       acceptRanges: result?.AcceptRanges,
       checksumSHA1: result?.ChecksumSHA1,
@@ -120,23 +127,23 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource {
       versionId: result?.VersionId,
     };
   }
-  mutation(request: ActionRequest<P>): Promise<unknown> {
-    const payloadObject = this.#validatePayload(request);
-    if (payloadObject.method === 'SELECT') return this.select(request);
-    else if (payloadObject.method === 'GET') return this.select(request);
-    else if (payloadObject.method === 'INSERT') return this.insert(request);
-    else if (payloadObject.method === 'UPDATE') return this.update(request);
-    else if (payloadObject.method === 'DELETE') return this.delete(request);
+  mutation(): Promise<object | boolean> {
+    const payloadObject = this.#validatePayload();
+    if (payloadObject.method === 'SELECT') return this.select();
+    else if (payloadObject.method === 'GET') return this.select();
+    else if (payloadObject.method === 'INSERT') return this.insert();
+    else if (payloadObject.method === 'UPDATE') return this.update();
+    else if (payloadObject.method === 'DELETE') return this.delete();
 
     throw new Error(
       `Unsupported method: ${payloadObject.method} expected \`GET\`, \`SELECT\`, \`INSERT\`, \`UPDATE\`, or \`DELETE\`.`
     );
   }
-  async insert(request: ActionRequest<P>): Promise<unknown> {
+  async insert(): Promise<object> {
     if (!this.client) await this.connect();
-    const payloadObject = this.#validatePayload(request);
+    const payloadObject = this.#validatePayload();
     if (!['INSERT', 'UPDATE'].includes(payloadObject.method))
-      throw new Error(`Invalid method \`method\`.\n${this.#getPayloadError()}`);
+      throw new Error(this.getPayloadInvalidValueError('method'));
 
     let body = payloadObject.sourceValue ?? '';
     if (payloadObject.sourceType === 'path') {
@@ -160,13 +167,13 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource {
       size: result?.Size,
     };
   }
-  update(request: ActionRequest<P>): Promise<unknown> {
-    return this.insert(request);
+  update(): Promise<object> {
+    return this.insert();
   }
-  async delete(request: ActionRequest<P>): Promise<unknown> {
+  async delete(): Promise<object> {
     if (!this.client) await this.connect();
-    const payloadObject = this.#validatePayload(request);
-    if (payloadObject.method !== 'DELETE') throw new Error(`Invalid method \`method\`.\n${this.#getPayloadError()}`);
+    const payloadObject = this.#validatePayload();
+    if (payloadObject.method !== 'DELETE') throw new Error(this.getPayloadInvalidValueError('method'));
     const result = await this.client?.send(
       new DeleteObjectCommand({
         Bucket: payloadObject.bucket,
@@ -178,22 +185,23 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource {
       versionId: result?.VersionId,
     };
   }
-  async showSchema(request: ActionRequest<P>): Promise<unknown> {
+  async showSchema(): Promise<object> {
     if (!this.client) await this.connect();
-    const bucket = this.#getBucket(request);
-    const object = this.getPayloadObject(request);
+    const bucket = this.#getBucket();
     const payloadObject = {
-      ...object,
+      ...this.payload,
       bucket,
     };
 
-    return this.client?.send(
-      new ListObjectsV2Command({
-        Bucket: payloadObject.bucket,
-        Prefix: payloadObject.key ?? '',
-        MaxKeys: payloadObject.maxResults ?? 100,
-        // Delimiter: '/',
-      })
+    return (
+      this.client?.send(
+        new ListObjectsV2Command({
+          Bucket: payloadObject.bucket,
+          Prefix: payloadObject.key ?? '',
+          MaxKeys: payloadObject.maxResults ?? 100,
+          // Delimiter: '/',
+        })
+      ) ?? {}
     );
   }
   async close(): Promise<void> {

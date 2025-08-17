@@ -1,11 +1,5 @@
 import mysql, { type Connection, type ConnectionOptions } from 'mysql2/promise';
-import z from 'zod';
-import {
-  SqlDataSource,
-  type ActionRequest,
-  type DatabaseBasePayload,
-  type PayloadDescription,
-} from '../../database-source.js';
+import { SqlDataSource, type DatabasePayloadBase, type PayloadDescription } from '../../database-source.js';
 
 /**
  * MySQL data source implementation using `mysql2/promise`.
@@ -15,14 +9,11 @@ import {
  * inspection helper. Methods return raw driver results and may throw when
  * the provided SQL does not match the expected statement type.
  */
-export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
+export class MySQL extends SqlDataSource {
   /** The active MySQL connection, set by `connect()` */
   private connection?: Connection;
-  describePayload(): PayloadDescription {
-    return {
-      sql: z.string(),
-      params: z.record(z.any()).optional(),
-    };
+  describePayload(): PayloadDescription<DatabasePayloadBase> {
+    return this.sqlPayloadInformation();
   }
   async connect(): Promise<void> {
     // ensure there's a reasonable connect timeout and attach an error handler
@@ -41,13 +32,11 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    * statements. This returns the raw driver result for execute() (insert/update
    * metadata, etc.).
    *
-   * @param payload an ActionPayload containing `sql` and optional `params`
    * @returns Promise resolving to the driver result (shape depends on query)
    */
-  async mutation(request: ActionRequest<P>): Promise<any> {
-    const payload = this.getPayloadObject(request);
-    if (!payload.sql) throw new Error('SQL query is required for mutation.');
-    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
+  async mutation(): Promise<any> {
+    if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
+    const [result] = (await this.connection?.execute(this.payload.sql, this.payload.params)) ?? [];
     return result;
   }
   /**
@@ -57,15 +46,13 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    * `connection.query`. The resolved value is the `rows` array returned by the
    * driver.
    *
-   * @param payload an ActionPayload with `sql` (SELECT) and optional `params`
    * @throws if the provided SQL is not a SELECT statement
    * @returns Promise resolving to the rows returned by the query
    */
-  async select(request: ActionRequest<P>): Promise<any> {
-    if (!this.isSelect(request)) throw new Error('The provided SQL query is not a SELECT statement.');
-    const payload = this.getPayloadObject(request);
-    if (!payload.sql) throw new Error('SQL query is required for select.');
-    const [rows] = (await this.connection?.query(payload.sql, payload.params)) ?? [];
+  async select(): Promise<any> {
+    if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
+    if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
+    const [rows] = (await this.connection?.query(this.payload.sql, this.payload.params)) ?? [];
     return rows;
   }
   /**
@@ -74,15 +61,13 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    * Validates via `isInsert` then executes the statement. The returned value
    * is the driver result for `execute()` (contains insertId, affectedRows, etc.).
    *
-   * @param payload ActionPayload with `sql` (INSERT) and optional `params`
    * @throws if the provided SQL is not an INSERT statement
    * @returns Promise resolving to the driver execute result
    */
-  async insert(request: ActionRequest<P>): Promise<any> {
-    if (!this.isInsert(request)) throw new Error('The provided SQL query is not an INSERT statement.');
-    const payload = this.getPayloadObject(request);
-    if (!payload.sql) throw new Error('SQL query is required for insert.');
-    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
+  async insert(): Promise<any> {
+    if (!this.isInsert()) throw new Error(this.getPayloadInvalidValueError('sql'));
+    if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
+    const [result] = (await this.connection?.execute(this.payload.sql, this.payload.params)) ?? [];
     return result;
   }
   /**
@@ -91,15 +76,13 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    * Validates via `isUpdate` and returns the raw execute result (affectedRows,
    * changedRows, etc.).
    *
-   * @param payload ActionPayload with `sql` (UPDATE) and optional `params`
    * @throws if the provided SQL is not an UPDATE statement
    * @returns Promise resolving to the driver execute result
    */
-  async update(request: ActionRequest<P>): Promise<any> {
-    if (!this.isUpdate(request)) throw new Error('The provided SQL query is not an UPDATE statement.');
-    const payload = this.getPayloadObject(request);
-    if (!payload.sql) throw new Error('SQL query is required for update.');
-    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
+  async update(): Promise<any> {
+    if (!this.isUpdate()) throw new Error(this.getPayloadInvalidValueError('sql'));
+    if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
+    const [result] = (await this.connection?.execute(this.payload.sql, this.payload.params)) ?? [];
     return result;
   }
   /**
@@ -107,21 +90,19 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    *
    * Validates via `isDelete` and returns the raw execute result.
    *
-   * @param payload ActionPayload with `sql` (DELETE) and optional `params`
    * @throws if the provided SQL is not a DELETE statement
    * @returns Promise resolving to the driver execute result
    */
-  async delete(request: ActionRequest<P>): Promise<any> {
-    if (!this.isDelete(request)) throw new Error('The provided SQL query is not a DELETE statement.');
-    const payload = this.getPayloadObject(request);
-    if (!payload.sql) throw new Error('SQL query is required for delete.');
-    const [result] = (await this.connection?.execute(payload.sql, payload.params)) ?? [];
+  async delete(): Promise<any> {
+    if (!this.isDelete()) throw new Error(this.getPayloadInvalidValueError('sql'));
+    if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
+    const [result] = (await this.connection?.execute(this.payload.sql, this.payload.params)) ?? [];
     return result;
   }
   /**
    * Inspect database schema information.
    *
-   * When `payload.tableName` is provided this returns the result of
+   * When `this.payload.tableName` is provided this returns the result of
    * `SHOW CREATE TABLE <table>`. When omitted the method attempts to list all
    * tables, procedures and functions for the current database and returns an
    * array of schema objects.
@@ -130,9 +111,8 @@ export class MySQL<P extends DatabaseBasePayload> extends SqlDataSource<P> {
    * @returns Promise resolving to either a single table's create statement or
    *          an array of schema objects for tables, procedures and functions
    */
-  async showSchema(request: ActionRequest<P>): Promise<any> {
-    const payload = this.getPayloadObject(request);
-    const tableName = payload.tableName;
+  async showSchema(): Promise<any> {
+    const tableName = this.payload.tableName;
     if (tableName) {
       const [rows] = (await this.connection?.query('SHOW CREATE TABLE ??', [tableName])) ?? [];
       return rows;

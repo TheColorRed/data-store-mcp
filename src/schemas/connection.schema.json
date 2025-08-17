@@ -77,7 +77,7 @@
       "$ref": "./mssql.schema.json"
     },
     {
-      "$ref": "./crud.schema.json"
+      "$ref": "./rest.schema.json"
     },
     {
       "$ref": "./graphql.schema.json"

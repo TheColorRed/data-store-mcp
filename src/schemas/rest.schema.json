@@ -3,19 +3,19 @@
   "type": "object",
   "properties": {
     "type": {
-      "const": "crud",
-      "description": "A CRUD operation (Create, Read, Update, Delete)."
+      "const": "rest",
+      "description": "Connect to an HTTP REST API."
     },
     "options": {
       "type": "object",
       "properties": {
         "headers": {
           "type": "object",
-          "description": "The headers to include for all CRUD endpoints."
+          "description": "The headers to include for all REST API requests."
         },
         "endpoints": {
           "type": "array",
-          "description": "The endpoints for the CRUD operations. Each item can be a string (the URL) or an object with a `method` and `url` properties.",
+          "description": "The endpoints for the REST API operations. Each item can be a string (the URL) or an object with a `method` and `url` properties.",
           "items": {
             "oneOf": [
               {
@@ -26,15 +26,15 @@
                 "properties": {
                   "description": {
                     "type": "string",
-                    "description": "A description of the CRUD operation. This can help the agent better choose the right operation."
+                    "description": "A description of the REST API operation. This can help the agent better choose the right operation."
                   },
                   "url": {
                     "type": "string",
-                    "description": "The endpoint of where the CRUD operation will be performed."
+                    "description": "The endpoint of where the REST API operation will be performed."
                   },
                   "method": {
                     "type": "string",
-                    "description": "The HTTP method for the CRUD operation. Defaults to `GET`.",
+                    "description": "The HTTP method for the REST API operation. Defaults to `GET`.",
                     "enum": [
                       "GET",
                       "POST",

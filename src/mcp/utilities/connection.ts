@@ -1,6 +1,14 @@
 import fs from 'fs/promises';
-import { DataSource, type DatabaseSourceConfig } from '../database-source.js';
+import {
+  DataSource,
+  type ActionRequest,
+  type DatabasePayloadBase,
+  type DataSourceConfig,
+  type HttpPayloadBase,
+  type ResponseType,
+} from '../database-source.js';
 import * as sources from '../sources/index.js';
+import { type GraphQLPayload, type MongoPayload, type S3Payload } from '../sources/index.js';
 
 /** The type of tool being used. */
 export type ToolType = 'select' | 'insert' | 'update' | 'delete' | 'schema' | 'mutation' | 'connections';
@@ -38,14 +46,17 @@ export const folders = async (foldersInit: Folder[]) =>
  * Factory function to create a data source from a connection ID and returns the generated connection class and connection information.
  * @param connectionId The ID of the connection.
  * @param foldersInit The initial folder information.
+ * @param shouldConnect Whether to connect to the data source immediately.
  */
-export const getSource = async (
-  connectionId: string,
-  foldersInit: Folder[]
+export const getSource = async <P = unknown>(
+  request: ActionRequest<P>,
+  foldersInit: Folder[],
+  shouldConnect = true
 ): Promise<{ source: DataSource; connection: { id: string; type: string } }> => {
+  const connectionId = request.connectionId;
   const connection = (await folders(foldersInit))
     .flatMap(folder => folder.connections)
-    .find(conn => conn.id === connectionId) as DatabaseSourceConfig | undefined;
+    .find(conn => conn.id === connectionId) as DataSourceConfig | undefined;
   let source: DataSource;
   if (!connection || !connection.id)
     throw new Error(`Connection id not found: "${connectionId}". Try again using a different connection`);
@@ -53,21 +64,21 @@ export const getSource = async (
   // prettier-ignore
   switch (connection.type) {
       // SQL Data Sources
-      case 'mysql': source = new sources.MySQL(connection); break;
-      case 'sqlite': source = new sources.SQLite(connection); break;
-      case 'postgres': source = new sources.Postgres(connection); break;
-      case 'mssql': source = new sources.MSSQL(connection); break;
+      case 'mysql': source = new sources.MySQL(connection, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'sqlite': source = new sources.SQLite(connection, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'postgres': source = new sources.Postgres(connection, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'mssql': source = new sources.MSSQL(connection, request as ActionRequest<DatabasePayloadBase>); break;
       // HTTP Data Sources
-      case 'crud': source = new sources.Crud(connection); break;
-      case 'graphql': source = new sources.GraphQL(connection); break;
+      case 'rest': source = new sources.Rest(connection, request as ActionRequest<HttpPayloadBase>); break;
+      case 'graphql': source = new sources.GraphQL(connection, request as ActionRequest<GraphQLPayload>); break;
       // NoSQL Data Sources
-      case 'mongodb': source = new sources.MongoDB(connection); break;
+      case 'mongodb': source = new sources.MongoDB(connection, request as ActionRequest<MongoPayload>); break;
       // Other Data Sources
-      case 's3': source = new sources.S3Source(connection); break;
+      case 's3': source = new sources.S3Source(connection, request as ActionRequest<S3Payload>); break;
       default: throw new Error(`Unsupported data type: ${connection.type}`);
     }
   if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);
-  await source.connect();
+  if (shouldConnect) await source.connect();
   return { source, connection };
 };
 /**
@@ -75,7 +86,7 @@ export const getSource = async (
  * Options: 'select', 'insert', 'update', 'delete', 'schema', 'mutation'
  * @param options The options for the data source connection.
  */
-export const isAllowed = (options: DatabaseSourceConfig, action: ToolType) => {
+export const isAllowed = (options: DataSourceConfig, action: ToolType) => {
   const disallowed = options.disallowedTools ?? [];
   return !disallowed.includes(action);
 };
@@ -89,9 +100,12 @@ export const isAllowedError = (action: ToolType) =>
  * The message(s) that are send back from the MCP.
  * @param messages The messages to send back.
  */
-export const returnText = (...messages: (string | boolean)[]) => ({
-  content: messages.map(msg => ({
-    type: 'text',
-    text: typeof msg === 'boolean' ? (msg ? 'Success' : 'Failure') : msg ?? '',
-  })) as { type: 'text'; text: string }[],
+export const returnText = <T extends ResponseType>(...messages: T[]) => ({
+  content: messages.map(msg => {
+    let responseText = '';
+    if (typeof msg === 'object' || Array.isArray(msg)) responseText = JSON.stringify(msg);
+    else if (typeof msg === 'boolean') responseText = msg ? 'Success' : 'Failure';
+    else if (typeof msg === 'string') responseText = msg;
+    return { type: 'text', text: responseText };
+  }) as { type: 'text'; text: string }[],
 });

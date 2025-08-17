@@ -1,65 +1,48 @@
-import { getIntrospectionQuery, parse, Source } from 'graphql';
+import { getIntrospectionQuery, parse } from 'graphql';
 import z from 'zod';
-import { BaseHttpPayload, HttpDataSource, type ActionRequest, type PayloadDescription } from '../../database-source.js';
+import { HttpDataSource, type PayloadDescription } from '../../database-source.js';
 
-export class GraphQL<P extends BaseHttpPayload> extends HttpDataSource {
-  /**
-   * Parse the GraphQL query string found in payload.payload into an AST.
-   * Accepts either a parsed object or a JSON-encoded string containing `{ query }`.
-   * @throws on invalid JSON or invalid GraphQL syntax
-   * @param payload the action payload containing `payload.query`
-   */
-  #parse(payload: P) {
-    try {
-      let rootPayload: Record<string, any>;
-      if (!payload.body)
-        throw new Error('Missing request body containing a `query` key and optionally a `variables` key.');
+export interface GraphQLPayload {
+  query: string;
+  variables?: Record<string, any>;
+  headers?: Record<string, string>;
+}
 
-      if (typeof payload.body === 'string') rootPayload = JSON.parse(payload.body ?? '{"query": ""}');
-      else rootPayload = payload.body ?? { query: '' };
-      const source = new Source(rootPayload.query);
-      return parse(source);
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  /**
-   * Ensure the action payload includes a `payload` key (which should contain
-   * the GraphQL `query` and optional `variables`).
-   * @param payload the action payload to validate
-   */
-  #checkForPayload(payload: P) {
-    if (!payload)
-      throw new Error(
-        `A \`payload\` key is required for a graphql operation containing JSON with \`query\` and optionally \`variables\`.`
-      );
-    if (!payload.body) throw new Error('A `body` key is required in the payload for GraphQL operations.');
-  }
-
+export class GraphQL<P extends GraphQLPayload> extends HttpDataSource<P> {
   /**
    * Build and send the HTTP POST request to the GraphQL endpoint. Merges
    * headers from the payload and the connection config and sets JSON content
    * type.
    * @param payload the action payload containing endpoint, headers and body
    */
-  #buildAndSendRequest(payload: P) {
+  #buildAndSendRequest() {
+    const payload = this.payload;
     return this.makeHttpRequest({
       ...payload,
+      body: { query: payload.query, variables: payload.variables },
+      // Use the connection config URL as the endpoint
+      // and ensure the request is a POST with JSON content type.
       endpoint: this.connectionConfig.options.url,
       method: 'POST',
       headers: {
-        ...payload.headers,
         ...this.connectionConfig.options.headers,
+        ...payload.headers,
         'Content-Type': 'application/json',
       },
     });
   }
-  describePayload(): PayloadDescription {
-    return this.combinePayload({
-      query: z.string(),
-      variables: z.record(z.any()).optional(),
-    });
+  describePayload(): PayloadDescription<GraphQLPayload> {
+    return {
+      query: z.string().describe('GraphQL query string. Example: "query { users { id name } }".'),
+      variables: z
+        .record(z.any())
+        .optional()
+        .describe('Optional variables for the GraphQL query that will be passed in the request body.'),
+      headers: z
+        .record(z.any())
+        .optional()
+        .describe('Optional headers to include in the HTTP request. Merges with connection config headers.'),
+    };
   }
   /**
    * Execute a GraphQL query (read operation).
@@ -68,44 +51,31 @@ export class GraphQL<P extends BaseHttpPayload> extends HttpDataSource {
    * represents a `query` operation. Returns the result of the HTTP request.
    * @param payload the action payload containing the GraphQL query
    */
-  select(request: ActionRequest<P>): Promise<string> {
-    const payload = this.getPayloadObject(request);
-    try {
-      this.#checkForPayload(payload);
-      const ast = this.#parse(payload);
-      if (ast.definitions.some(def => def.kind !== 'OperationDefinition' || def.operation !== 'query'))
-        throw new Error('Invalid GraphQL query: Must be a `query` operation.');
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : String(error));
-    }
-    return this.#buildAndSendRequest(payload);
+  select(): Promise<string> {
+    if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('query'));
+    return this.#buildAndSendRequest();
   }
   /**
    * Execute a GraphQL mutation (create/update/delete operations).
    * @param payload the action payload containing the GraphQL mutation
    */
-  mutation(request: ActionRequest<P>): Promise<unknown> {
-    const payload = this.getPayloadObject(request);
-    try {
-      this.#checkForPayload(payload);
-      return this.#buildAndSendRequest(payload);
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : String(error));
-    }
+  mutation(): Promise<string> {
+    if (!this.isMutation()) throw new Error(this.getPayloadInvalidValueError('query'));
+    return this.#buildAndSendRequest();
   }
-  insert(request: ActionRequest<P>): Promise<unknown> {
-    return this.mutation(request);
+  insert(): Promise<string> {
+    return this.mutation();
   }
-  update(request: ActionRequest<P>): Promise<unknown> {
-    return this.mutation(request);
+  update(): Promise<string> {
+    return this.mutation();
   }
-  delete(request: ActionRequest<P>): Promise<unknown> {
-    return this.mutation(request);
+  delete(): Promise<string> {
+    return this.mutation();
   }
   /**
    * Request GraphQL introspection and return the server schema.
    */
-  showSchema(): Promise<unknown> {
+  showSchema(): Promise<string> {
     // Get GraphQL collection schema
     const query = getIntrospectionQuery();
     const payload = this.getPayloadObject({}) as P;
@@ -124,9 +94,18 @@ export class GraphQL<P extends BaseHttpPayload> extends HttpDataSource {
   connect(): Promise<void> {
     return Promise.resolve();
   }
-
   /** No-op close for remote GraphQL endpoints (kept for API symmetry). */
   close(): Promise<void> {
     return this.safeClose(() => Promise.resolve());
+  }
+
+  isSelect(): boolean {
+    const parsed = parse(this.payload.query);
+    return parsed.definitions.every(i => i.kind === 'OperationDefinition' && i.operation === 'query');
+  }
+
+  isMutation(): boolean {
+    const parsed = parse(this.payload.query);
+    return parsed.definitions.some(i => i.kind === 'OperationDefinition' && i.operation === 'mutation');
   }
 }

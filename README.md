@@ -7,6 +7,7 @@ The Data Store MCP (Model Context Protocol) is an extension for Visual Studio Co
 With the Data Store MCP, you can leverage the benefits of AI to manage, query, and manipulate your data across multiple data stores. Some of the benefits include:
 
 - Leveraging the power of AI to assist with getting and managing your data across multiple data stores.
+- Generate reports and summaries of your data.
 - Getting information about your data store structure, schema, tables and much more.
 - Using AI to generate complex `SQL`/`GraphQL` queries that you may not know how to write.
 - Easily managing connections to multiple data stores through a simple `JSON` configuration.
@@ -23,7 +24,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 - [Data Store MCP](#data-store-mcp)
   - [Benefits](#benefits)
 - [Table of Contents](#table-of-contents)
-  - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
+    - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
   - [The agent](#the-agent)
     - [Comments/Descriptions](#commentsdescriptions)
     - [Forcing a tool to run](#forcing-a-tool-to-run)
@@ -40,7 +41,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
     - [A sample GraphQL connection](#a-sample-graphql-connection)
   - [Available tools](#available-tools)
     - [`connections` (full support)](#connections-full-support)
-    - [`tables` (partial support)](#tables-partial-support)
+    - [`payload` (full support)](#payload-full-support)
     - [`schema` (partial support)](#schema-partial-support)
     - [Executable commands](#executable-commands)
       - [`select` (full support)](#select-full-support)
@@ -65,6 +66,8 @@ Here are some ways for using the MCP safely outside of the tools:
 ## The agent
 
 The agent is a powerful AI that can interact with the data store using the tools provided by the MCP. It can understand natural language instructions and execute the appropriate tools to perform the requested actions.
+
+**Note:** When prompting the agent, sometimes it needs a little nudge in the right direction to use the tools, so it is recommended that you use `#connections` somewhere within the first prompt. This helps the agent know that you want to work with the Data Store tools and in most cases will start using the proper tools without being prompted to do so thereafter.
 
 ### Comments/Descriptions
 
@@ -280,11 +283,13 @@ These are tools that the MCP uses to interact with the data store. The tools are
 
 This tool will get all the connections defined in the `connections.json`, `stores.json`, `*.connection.json`, or `*.store.json` files in the `.vscode` folder of your workspace.
 
-### `tables` (partial support)
+**Note:** It is recommended to not disable this tool as it is used by the agent to get the list of connections. If you disable it, you will need to manually provide the connection ID in your instructions.
 
-This tool will get all the tables in the current data store.
+### `payload` (full support)
 
-**Note:** This tool may not be supported by all data sources. For example, an API data source may not have a concept of tables.
+This tool will get the payload that is needed for the data source. The payload is a JSON object that contains the information needed to perform the operation on the data source. The payload structure may vary depending on the data source type and the operation being performed.
+
+**Note:** It is recommended to not disable this tool as it is used by the agent to get the payload information for the data source. If you disable it, the agent may not be able to perform certain operations.
 
 ### `schema` (partial support)
 

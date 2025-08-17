@@ -3,7 +3,7 @@
 This document will explain how the subsequent tools need to interact with data store tools so you can make as few mistakes as possible and call the tools with the correct parameters the first time without guesswork.
 
 1. Once the appropriate connection(s) are selected, you should output the connection ID(s) to the user.
-2. After running the `#connections` tool, you should run the `#payload` tool to get the payload information for the selected data store type. Each payload has different information that needs to be sent to it.
+2. After running the `#connections` tool, you must run the `#payload` tool to get the payload information for the selected data store type. Each payload has different information that needs to be sent to it.
 3. After running the `#payload` tool, you should always understand the schema by calling the `#schema` tool with the appropriate parameters if you don't already have the schema information.
 
 # Workflow

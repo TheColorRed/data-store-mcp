@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import * as vscode from 'vscode';
 
+let dataStoreMcpProvider: vscode.Disposable | undefined = undefined;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -20,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
   watcher.onDidCreate(() => didChangeEmitter.fire());
   watcher.onDidDelete(() => didChangeEmitter.fire());
 
-  const dataStoreMcpProvider = vscode.lm.registerMcpServerDefinitionProvider('data-store-mcp', {
+  dataStoreMcpProvider = vscode.lm.registerMcpServerDefinitionProvider('data-store-mcp', {
     onDidChangeMcpServerDefinitions: didChangeEmitter.event,
     provideMcpServerDefinitions: async () => {
       return [
@@ -37,4 +38,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+  dataStoreMcpProvider?.dispose();
+}
