@@ -4,7 +4,7 @@ import nodeSqlParser from 'node-sql-parser';
 import z, { ZodTypeAny, type ZodType } from 'zod';
 
 /** Supported data source types for the MCP server. */
-export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'rest' | 'graphql' | 'mongodb' | 's3';
+export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'rest' | 'ftp' | 'graphql' | 'mongodb' | 's3';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 /**
  * Generic connection configuration passed to data source implementations.
@@ -80,10 +80,11 @@ export class UnsupportedActionError extends Error {
  * the type of the provider-specific connection options available on
  * `connectionConfig.options`.
  */
-export abstract class DataSource<P = unknown> {
+export abstract class DataSource<P = unknown, Cfg = unknown> {
   // Abstract methods for connecting and closing the data source
   abstract connect(): Promise<void>;
   abstract close(): Promise<void>;
+  abstract describePayload(): PayloadDescription<object>;
 
   // Abstract methods for different operations
   abstract select(): Promise<ReturnType>;
@@ -91,7 +92,6 @@ export abstract class DataSource<P = unknown> {
   abstract update(): Promise<ReturnType>;
   abstract delete(): Promise<ReturnType>;
   abstract mutation(): Promise<ReturnType>;
-  abstract describePayload(): PayloadDescription<object>;
 
   // Abstract methods for testing the type of queries
   abstract isMutation(): Promise<boolean> | boolean;
@@ -104,7 +104,7 @@ export abstract class DataSource<P = unknown> {
   abstract showSchema(): Promise<ReturnType>;
 
   readonly payload: P;
-  constructor(readonly connectionConfig: DataSourceConfig & { options: any }, readonly request: ActionRequest<P>) {
+  constructor(readonly connectionConfig: DataSourceConfig<Cfg>, readonly request: ActionRequest<P>) {
     this.payload = this.getPayloadObject(request);
   }
   /**
@@ -200,7 +200,10 @@ export abstract class DataSource<P = unknown> {
   }
 }
 
-export abstract class SqlDataSource<P extends DatabasePayloadBase = DatabasePayloadBase> extends DataSource<P> {
+export abstract class SqlDataSource<
+  P extends DatabasePayloadBase = DatabasePayloadBase,
+  Cfg = unknown
+> extends DataSource<P, Cfg> {
   abstract select(): Promise<ReturnType>;
   abstract mutation(): Promise<ReturnType>;
   abstract insert(): Promise<ReturnType>;
@@ -286,7 +289,7 @@ export abstract class SqlDataSource<P extends DatabasePayloadBase = DatabasePayl
   }
 }
 
-export abstract class NoSqlDataSource<P = unknown> extends DataSource<P> {
+export abstract class NoSqlDataSource<P = unknown, Cfg = unknown> extends DataSource<P, Cfg> {
   abstract select(): Promise<ReturnType>;
   abstract mutation(): Promise<ReturnType>;
   abstract insert(): Promise<ReturnType>;
@@ -295,7 +298,7 @@ export abstract class NoSqlDataSource<P = unknown> extends DataSource<P> {
   abstract showSchema(): Promise<ReturnType>;
 }
 
-export abstract class HttpDataSource<P = HttpPayloadBase> extends DataSource<P> {
+export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends DataSource<P, Cfg> {
   abstract select(): Promise<ReturnType>;
   abstract mutation(): Promise<ReturnType>;
   abstract insert(): Promise<ReturnType>;

@@ -4,7 +4,7 @@
   "properties": {
     "type": {
       "const": "rest",
-      "description": "Connect to an HTTP REST API."
+      "description": "A REST API connection."
     },
     "options": {
       "type": "object",

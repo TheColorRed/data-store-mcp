@@ -33,7 +33,7 @@
   - Corrected the connection call for postgres.
 - Added
   - Support for AWS S3.
-  - New `payload` tool for describing the payload for each data source.
+  - New `payload` tool for describing the payload needed for each data store.
   - Store config addition of `disallowedTools` parameter to restrict certain tools from running a enabled tool.
     - Useful for allowing some tools to run while blocking others.
 - Updated
@@ -41,3 +41,8 @@
   - Changed the parameters that get passed to the data source so it is more dynamic and flexible. It now only accepts 2 parameters.
     - `connectionId` - The unique identifier for the connection.
     - `payload` - The payload to be sent to the data source.
+
+## 1.4.x - 2025-08-24
+
+- Added
+  - Support for FTP.

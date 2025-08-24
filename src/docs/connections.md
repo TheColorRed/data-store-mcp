@@ -22,9 +22,9 @@ This document will explain how the subsequent tools need to interact with data s
 
 When executing a graphql query, you should provide a `payload` key containing a JSON object with a `query` key and optionally a `variables` key. When a dynamic value is provided, you MUST add it to the variables property, and not pass it directly in the query string for security reasons.
 
-## CRUD (Http API)
+## REST (Http API)
 
-When executing a CRUD operation, you should provide the following keys:
+When executing a REST operation, you should provide the following keys:
 
 - `endpoint` (required): The HTTP endpoint to call. Using the `search` object from the connections, create a `?key=value` query string when necessary.
 - `payload` (optional): The payload to send in the request body.

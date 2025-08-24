@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Use AI to connect to different data stores using the Model Context Protocol (MCP).",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",
@@ -21,7 +21,8 @@
     "rest",
     "sqlite",
     "store",
-    "s3"
+    "s3",
+    "ftp"
   ],
   "icon": "images/icon.png",
   "type": "module",
@@ -67,15 +68,16 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run copy-json && npm run copy-docs",
+    "vscode:prepublish": "npm run compile && npm run copy-schema && npm run copy-docs",
     "compile": "tsc -p ./",
-    "prewatch": "rm -rf out && mkdir out && npm run copy-json && npm run copy-docs",
+    "prewatch": "rm -rf out && mkdir out && npm run copy-schema && npm run copy-docs",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "watch-json": "chokidar \"src/schemas/**/*.json\" -c \"npm run copy-json\"",
-    "copy-json": "cp -r \"src/schemas/\" out",
+    "watch-json": "chokidar \"src/schemas/**/*.json\" -c \"npm run copy-schema\"",
+    "copy-files": "npm run copy-schema && npm run copy-docs",
+    "copy-schema": "cp -r \"src/schemas/\" out",
     "copy-docs": "cp -r \"src/docs/\" out"
   },
   "devDependencies": {
@@ -93,6 +95,7 @@
     "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@modelcontextprotocol/sdk": "^1.17.1",
+    "basic-ftp": "^5.0.5",
     "fast-glob": "^3.3.3",
     "graphql": "^16.11.0",
     "mongodb": "^6.18.0",

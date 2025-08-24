@@ -4,15 +4,11 @@
   "properties": {
     "type": {
       "const": "mongodb",
-      "description": "A MongoDB data source."
+      "description": "A MongoDB database connection."
     },
     "options": {
       "type": "object",
       "properties": {
-        "headers": {
-          "type": "object",
-          "description": "The headers to include for all CRUD endpoints."
-        },
         "url": {
           "type": "string",
           "description": "The URL to connect to the MongoDB database."

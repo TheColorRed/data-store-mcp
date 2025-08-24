@@ -14,17 +14,18 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 - Executing data operations directly from your code editor without switching contexts.
 - Testing API endpoints and validating responses.
 - Getting data from one data store and using it in another.
-  - Getting the schema from a `MySQL` database and using it to generate a `GraphQL` query or a `CRUD` operation.
+  - Getting the schema from a `MySQL` database and using it to generate a `GraphQL` query or a `Rust` operation.
   - Querying a `PostgreSQL` database and copying the data to a `MySQL` database.
 - Using built-in tools to search the internet for information, then compiling that information into a structured format to store in your data store.
 - Using the agent to perform complex data operations that would otherwise require writing custom code.
+- Save content from the server locally to a file.
 
 # Table of Contents
 
 - [Data Store MCP](#data-store-mcp)
   - [Benefits](#benefits)
 - [Table of Contents](#table-of-contents)
-    - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
+  - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
   - [The agent](#the-agent)
     - [Comments/Descriptions](#commentsdescriptions)
     - [Forcing a tool to run](#forcing-a-tool-to-run)
@@ -37,7 +38,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
       - [Descriptions](#descriptions)
       - [Same data different stores](#same-data-different-stores)
       - [A sample database connection](#a-sample-database-connection)
-      - [A sample CRUD connection](#a-sample-crud-connection)
+      - [A sample Rust connection](#a-sample-rust-connection)
     - [A sample GraphQL connection](#a-sample-graphql-connection)
   - [Available tools](#available-tools)
     - [`connections` (full support)](#connections-full-support)
@@ -172,7 +173,7 @@ Depending on the file type, the file will contain either an array of connections
     - `filename: string`, which is the path to the SQLite database file
     - Optional `mode: number`, defaults to `sqlite.OPEN_READWRITE | sqlite.OPEN_CREATE`
 - HTTP/REST API's
-  - CRUD (Create, Read, Update, Delete) operations can be defined with a `type` of `crud` and an `options` object that contains an array of endpoints.
+  - Rest (Create, Read, Update, Delete) operations can be defined with a `type` of `rest` and an `options` object that contains an array of endpoints.
     - Each endpoint can be a string URL or an object with a `url`.
     - Use a `description` field to provide context about the endpoint to the agent.
     - Use a `search` object to describe the search parameters for the endpoint `?key=value`.
@@ -193,13 +194,13 @@ Try to use the description field as much as possible to provide context about th
 
 #### Same data different stores
 
-Sometimes you can have the same data but from different stores, for example you could have a connection to a MySQL database, and a CRUD API. In this case, you can get the `schema` from the MySQL database and use it to generate a CRUD `http` request to the API.
+Sometimes you can have the same data but from different stores, for example you could have a connection to a MySQL database, and a REST API. In this case, you can get the `schema` from the MySQL database and use it to generate a REST `http` request to the API.
 
 ```md
-Query the "mysql" database for the #schema and then #select the `posts` endpoint using "crud".
+Query the "mysql" database for the #schema and then #select the `posts` endpoint using "rest".
 ```
 
-This will first use the `schema` tool to get the schema of the `posts` table from the MySQL database, and then use the `select` tool to query the `posts` endpoint using the CRUD API.
+This will first use the `schema` tool to get the schema of the `posts` table from the MySQL database, and then use the `select` tool to query the `posts` endpoint using the REST API.
 
 #### A sample database connection
 
@@ -219,9 +220,9 @@ A database connection has an `id`, a `type`, and an `options` object. The `optio
 }
 ```
 
-#### A sample CRUD connection
+#### A sample Rust connection
 
-A CRUD connection has a `url`, an optional `headers` object, and an `endpoints` array. Each endpoint can be a string URL or an object with a `url` and optional `description` and `method`. The `search` object can be used to describe the search parameters for the endpoint `?key=value`. The `headers` can be used to pass authentication tokens or other necessary headers for the API. The `description` field provides context about the CRUD operation to the agent, helping it understand what the operation does and how to use it.
+A Rust connection has a `url`, an optional `headers` object, and an `endpoints` array. Each endpoint can be a string URL or an object with a `url` and optional `description` and `method`. The `search` object can be used to describe the search parameters for the endpoint `?key=value`. The `headers` can be used to pass authentication tokens or other necessary headers for the API. The `description` field provides context about the Rust operation to the agent, helping it understand what the operation does and how to use it.
 
 1. A `GET` request to retrieve all posts.
 2. A `GET` request to retrieve a specific post by ID.
@@ -229,9 +230,9 @@ A CRUD connection has a `url`, an optional `headers` object, and an `endpoints` 
 
 ```json
 {
-  "id": "my-crud",
-  "type": "crud",
-  "description": "A CRUD operation for managing blog posts.",
+  "id": "my-rest",
+  "type": "rest",
+  "description": "A REST operation for managing blog posts.",
   "options": {
     "headers": {
       "Authorization": "Bearer YOUR_ACCESS_TOKEN"
@@ -287,7 +288,7 @@ This tool will get all the connections defined in the `connections.json`, `store
 
 ### `payload` (full support)
 
-This tool will get the payload that is needed for the data source. The payload is a JSON object that contains the information needed to perform the operation on the data source. The payload structure may vary depending on the data source type and the operation being performed.
+This tool will get the payload that is needed for the data source. The payload is a JSON object that contains the information needed to perform the operation on the data source, as it's structure will vary depending on the data source type and the operation being performed.
 
 **Note:** It is recommended to not disable this tool as it is used by the agent to get the payload information for the data source. If you disable it, the agent may not be able to perform certain operations.
 

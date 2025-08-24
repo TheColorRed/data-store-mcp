@@ -8,7 +8,12 @@ export interface GraphQLPayload {
   headers?: Record<string, string>;
 }
 
-export class GraphQL<P extends GraphQLPayload> extends HttpDataSource<P> {
+export interface GraphQLConfig {
+  url: string;
+  headers?: Record<string, string>;
+}
+
+export class GraphQL<P extends GraphQLPayload> extends HttpDataSource<P, GraphQLConfig> {
   /**
    * Build and send the HTTP POST request to the GraphQL endpoint. Merges
    * headers from the payload and the connection config and sets JSON content

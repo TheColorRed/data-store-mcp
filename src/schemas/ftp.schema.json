@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "ftp",
+      "description": "An FTP connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "The hostname or IP address of the FTP server. Defaults to localhost."
+        },
+        "port": {
+          "type": "integer",
+          "description": "The port number of the FTP server. Defaults to 21."
+        },
+        "user": {
+          "type": "string",
+          "description": "The username to use for authentication."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password to use for authentication."
+        },
+        "secure": {
+          "type": "boolean",
+          "description": "If true, use explicit FTPS (AUTH TLS). If set to 'implicit', use implicit FTPS."
+        },
+        "secureOptions": {
+          "type": "object",
+          "description": "Optional TLS options passed through to the underlying tls.connect.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

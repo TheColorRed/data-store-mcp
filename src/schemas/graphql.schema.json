@@ -4,14 +4,14 @@
   "properties": {
     "type": {
       "const": "graphql",
-      "description": "A GraphQL operation."
+      "description": "A GraphQL connection."
     },
     "options": {
       "type": "object",
       "properties": {
         "headers": {
           "type": "object",
-          "description": "The headers to include for all CRUD endpoints."
+          "description": "Optional headers to include in the GraphQL request, such as authentication tokens."
         },
         "description": {
           "type": "string",

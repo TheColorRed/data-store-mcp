@@ -8,7 +8,6 @@ import {
   type ResponseType,
 } from '../database-source.js';
 import * as sources from '../sources/index.js';
-import { type GraphQLPayload, type MongoPayload, type S3Payload } from '../sources/index.js';
 
 /** The type of tool being used. */
 export type ToolType = 'select' | 'insert' | 'update' | 'delete' | 'schema' | 'mutation' | 'connections';
@@ -60,21 +59,24 @@ export const getSource = async <P = unknown>(
   let source: DataSource;
   if (!connection || !connection.id)
     throw new Error(`Connection id not found: "${connectionId}". Try again using a different connection`);
+  // Normalize the connection to a non-generic form to avoid TS generic mismatch
+  const cfgAny = connection as DataSourceConfig<any>;
 
   // prettier-ignore
-  switch (connection.type) {
+  switch (cfgAny.type) {
       // SQL Data Sources
-      case 'mysql': source = new sources.MySQL(connection, request as ActionRequest<DatabasePayloadBase>); break;
-      case 'sqlite': source = new sources.SQLite(connection, request as ActionRequest<DatabasePayloadBase>); break;
-      case 'postgres': source = new sources.Postgres(connection, request as ActionRequest<DatabasePayloadBase>); break;
-      case 'mssql': source = new sources.MSSQL(connection, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'mysql': source = new sources.MySQL(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'sqlite': source = new sources.SQLite(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'postgres': source = new sources.Postgres(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'mssql': source = new sources.MSSQL(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
       // HTTP Data Sources
-      case 'rest': source = new sources.Rest(connection, request as ActionRequest<HttpPayloadBase>); break;
-      case 'graphql': source = new sources.GraphQL(connection, request as ActionRequest<GraphQLPayload>); break;
+      case 'rest': source = new sources.Rest(cfgAny, request as ActionRequest<HttpPayloadBase>); break;
+      case 'graphql': source = new sources.GraphQL(cfgAny, request as ActionRequest<sources.GraphQLPayload>); break;
+      case 'ftp': source = new sources.FTP(cfgAny, request as ActionRequest<sources.FTPPayload>); break;
       // NoSQL Data Sources
-      case 'mongodb': source = new sources.MongoDB(connection, request as ActionRequest<MongoPayload>); break;
+      case 'mongodb': source = new sources.MongoDB(cfgAny, request as ActionRequest<sources.MongoPayload>); break;
       // Other Data Sources
-      case 's3': source = new sources.S3Source(connection, request as ActionRequest<S3Payload>); break;
+      case 's3': source = new sources.S3Source(cfgAny, request as ActionRequest<sources.S3Payload>); break;
       default: throw new Error(`Unsupported data type: ${connection.type}`);
     }
   if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);
