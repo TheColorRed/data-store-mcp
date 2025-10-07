@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
   const folders = vscode.workspace.workspaceFolders ?? [];
 
   const watcher = vscode.workspace.createFileSystemWatcher(
-    '.vscode/{connections,stores}.json,.vscode/*.{connection,store}.json'
+    '.vscode/**/{connections,stores}.json,.vscode/**/*.{connection,store}.json'
   );
   watcher.onDidChange(() => didChangeEmitter.fire());
   watcher.onDidCreate(() => didChangeEmitter.fire());

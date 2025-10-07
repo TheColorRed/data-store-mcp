@@ -42,7 +42,16 @@
     - `connectionId` - The unique identifier for the connection.
     - `payload` - The payload to be sent to the data source.
 
-## 1.4.x - 2025-08-24
+## 1.4.x - 2025-08-25
 
 - Added
   - Support for FTP.
+  - Type hinting support for MariaDB in config file (uses the same driver as MySQL).
+
+## 1.5.x - 2025-10-03
+
+- Added
+  - Support for placing connection and store config files in subdirectories within the `.vscode` folder.
+- Updated
+  - Improved the parameter information and descriptions for all tools to make it clearer what each tool does and when to use them.
+  - Updated the connections response for better clarity and usability.

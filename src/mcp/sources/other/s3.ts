@@ -7,6 +7,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs/promises';
+import mime from 'mime-types';
 import z from 'zod';
 import { UnknownDataSource, type PayloadDescription } from '../../database-source.js';
 
@@ -145,15 +146,18 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     if (!['INSERT', 'UPDATE'].includes(payloadObject.method))
       throw new Error(this.getPayloadInvalidValueError('method'));
 
-    let body = payloadObject.sourceValue ?? '';
+    let body: string | Buffer = payloadObject.sourceValue ?? '';
+    let mimeType: string | undefined = undefined;
     if (payloadObject.sourceType === 'path') {
-      body = await fs.readFile(payloadObject.sourceValue!, 'utf-8');
+      body = await fs.readFile(payloadObject.sourceValue!);
+      mimeType = mime.lookup(payloadObject.sourceValue!) || undefined;
     }
 
     const result = await this.client?.send(
       new PutObjectCommand({
         Bucket: payloadObject.bucket,
         Key: payloadObject.key,
+        ContentType: mimeType,
         Body: body,
       })
     );

@@ -5,7 +5,6 @@ import {
   type DatabasePayloadBase,
   type DataSourceConfig,
   type HttpPayloadBase,
-  type ResponseType,
 } from '../database-source.js';
 import * as sources from '../sources/index.js';
 
@@ -102,12 +101,13 @@ export const isAllowedError = (action: ToolType) =>
  * The message(s) that are send back from the MCP.
  * @param messages The messages to send back.
  */
-export const returnText = <T extends ResponseType>(...messages: T[]) => ({
+export const returnText = (...messages: unknown[]) => ({
   content: messages.map(msg => {
     let responseText = '';
     if (typeof msg === 'object' || Array.isArray(msg)) responseText = JSON.stringify(msg);
     else if (typeof msg === 'boolean') responseText = msg ? 'Success' : 'Failure';
     else if (typeof msg === 'string') responseText = msg;
+    else responseText = String(msg);
     return { type: 'text', text: responseText };
   }) as { type: 'text'; text: string }[],
 });

@@ -22,7 +22,9 @@ const foldersIn: string[] = workspaceFolders.map((f: string) => f.replace(/\\/g,
 const isWindows = os.platform() === 'win32';
 const getFolders = async (): Promise<Folder[]> => {
   const files = await glob(
-    foldersIn.map(f => [`${f}/.vscode/{connections,stores}.json`, `${f}/.vscode/*.{connection,store}.json`]).flat()
+    foldersIn
+      .map(f => [`${f}/.vscode/**/{connections,stores}.json`, `${f}/.vscode/**/*.{connection,store}.json`])
+      .flat()
   );
   return files.map((file: string) => {
     file = isWindows ? file.replace(/\//g, '\\') : file;
@@ -46,7 +48,7 @@ const toolActions = {
 // This tool lists all available data source connections.
 server.tool(
   'connections',
-  'Lists all available data source connections. This should almost always be the first tool you call when working with a data source.',
+  'Lists all available data source connections. This should always be the first tool called when the users wants to start working with data such as a database (mysql, postgres, sqlite, etc.), http api request (rest or graphql, etc.), file server (ftp, s3, etc.) as it provides the necessary connection IDs to use with other data tools for accessing these data stores.',
   async () => {
     const connections = await Promise.all(
       (
@@ -80,13 +82,13 @@ server.tool(
     }
 
     const docs = await fs.readFile(`${extensionRoot}/docs/connections.md`, 'utf-8');
-    return returnText(JSON.stringify(connections), docs, parameterInformation);
+    return returnText(connections, docs, parameterInformation);
   }
 );
 
 server.tool(
   'payload',
-  'The payload for the data source. This should always be run after the `#connections` tool. This is used to provide additional information so the source knows how to understand the payload that should be sent.',
+  'The payload for the data source. This should always be run after the **#connections** tool, as it is used to provide additional information so the agent can better understand how to interact with the data source. This should be run before any other tool except for **#connections**.',
   {
     connectionId: z.string(),
   },
@@ -107,7 +109,7 @@ server.tool(
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
-  'Lists the schema of a specific table/collection if `tableName` is provided within the payload. This should always be run after the `#payload` tool and when the schema is not currently know for the data source. Otherwise gets the schema of all tables/collections.',
+  'Lists the schema of a specific table/collection if `tableName` is provided within the payload. This should usually be run after the **#payload** tool and when the schema is not currently known for the data source. Otherwise gets the schema of all tables/collections.\n\nNote that for some data sources this may not be possible as they may not have the concept of a schema.',
   {
     ...toolActions,
     payload: toolActions.payload.optional(),
@@ -132,7 +134,7 @@ server.tool(
 // If the query is not a mutation query, it returns an error message.
 server.tool(
   'mutation',
-  `Allows for the ability to run any type of query, this is un-restrictive.\n${parameterInformation}`,
+  `Allows for the ability to run any type of query, this is un-restrictive and can be dangerous to run if not used properly. However, it should only be used if the **#insert**, **#update**, or **#delete** tools cannot be used. This should mostly be used as a "Last Resort" kind of tool.\n${parameterInformation}`,
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());

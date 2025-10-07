@@ -140,18 +140,22 @@ This will then do the following:
 
 ## Setup a data store
 
-To add connections to the data store, create one or more JSON files in the `.vscode` folder of your workspace. The following file names are supported:
+To add connections to the data store, create one or more JSON files in the `.vscode` folder/subfolder of your workspace. The following file names are supported:
 
 - `connections.json` or `stores.json`: This file is used to define multiple connections in an array format.
 - `*.connection.json` or `*.store.json`: These files are used to define a single connection or store (note that there is no (`s`) after `connection` or `store`).
 
 ### .gitignore
 
-It is recommended to add these files to your `.gitignore` to avoid committing sensitive information.
+It is recommended to add these files to your `.gitignore` to avoid committing sensitive information. By placing the files in a folder such as `stores` within the `.vscode` folder, you can ignore the entire folder instead of each individual file.
 
-```
+```gitignore
+# To ignore files in the root .vscode folder:
 .vscode/*connection*.json
 .vscode/*store*.json
+
+# OR ignore an entire folder within .vscode:
+.vscode/stores
 ```
 
 ### Connection files
@@ -282,7 +286,7 @@ These are tools that the MCP uses to interact with the data store. The tools are
 
 ### `connections` (full support)
 
-This tool will get all the connections defined in the `connections.json`, `stores.json`, `*.connection.json`, or `*.store.json` files in the `.vscode` folder of your workspace.
+This tool will get all the connections defined in the `connections.json`, `stores.json`, `*.connection.json`, or `*.store.json` files in the `.vscode` folder/subfolder of your workspace.
 
 **Note:** It is recommended to not disable this tool as it is used by the agent to get the list of connections. If you disable it, you will need to manually provide the connection ID in your instructions.
 

@@ -3,8 +3,11 @@
   "type": "object",
   "properties": {
     "type": {
-      "const": "mysql",
-      "description": "A MySQL database connection."
+      "enum": [
+        "mysql",
+        "mariadb"
+      ],
+      "description": "A MySQL/MariaDB database connection."
     },
     "options": {
       "type": "object",
