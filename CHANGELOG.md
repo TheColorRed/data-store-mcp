@@ -48,7 +48,7 @@
   - Support for FTP.
   - Type hinting support for MariaDB in config file (uses the same driver as MySQL).
 
-## 1.5.x - 2025-10-03
+## 1.5.x - 2025-10-07
 
 - Added
   - Support for placing connection and store config files in subdirectories within the `.vscode` folder.

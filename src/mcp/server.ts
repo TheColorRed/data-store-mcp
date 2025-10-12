@@ -35,7 +35,7 @@ const getFolders = async (): Promise<Folder[]> => {
 const parameterInformation = await fs.readFile(`${extensionRoot}/docs/parameter-information.md`, 'utf-8');
 
 const server = new McpServer({
-  name: 'Data Source MCP Server',
+  name: 'MCP Server: Data Store',
   version: '1.0.0',
   capabilities: { tools: {} },
 });

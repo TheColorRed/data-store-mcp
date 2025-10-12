@@ -14,7 +14,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 - Executing data operations directly from your code editor without switching contexts.
 - Testing API endpoints and validating responses.
 - Getting data from one data store and using it in another.
-  - Getting the schema from a `MySQL` database and using it to generate a `GraphQL` query or a `Rust` operation.
+  - Getting the schema from a `MySQL` database and using it to generate a `GraphQL` query or a `Rest` operation.
   - Querying a `PostgreSQL` database and copying the data to a `MySQL` database.
 - Using built-in tools to search the internet for information, then compiling that information into a structured format to store in your data store.
 - Using the agent to perform complex data operations that would otherwise require writing custom code.
@@ -38,7 +38,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
       - [Descriptions](#descriptions)
       - [Same data different stores](#same-data-different-stores)
       - [A sample database connection](#a-sample-database-connection)
-      - [A sample Rust connection](#a-sample-rust-connection)
+      - [A sample Rest connection](#a-sample-rest-connection)
     - [A sample GraphQL connection](#a-sample-graphql-connection)
   - [Available tools](#available-tools)
     - [`connections` (full support)](#connections-full-support)
@@ -224,9 +224,9 @@ A database connection has an `id`, a `type`, and an `options` object. The `optio
 }
 ```
 
-#### A sample Rust connection
+#### A sample Rest connection
 
-A Rust connection has a `url`, an optional `headers` object, and an `endpoints` array. Each endpoint can be a string URL or an object with a `url` and optional `description` and `method`. The `search` object can be used to describe the search parameters for the endpoint `?key=value`. The `headers` can be used to pass authentication tokens or other necessary headers for the API. The `description` field provides context about the Rust operation to the agent, helping it understand what the operation does and how to use it.
+A Rest connection has a `url`, an optional `headers` object, and an `endpoints` array. Each endpoint can be a string URL or an object with a `url` and optional `description` and `method`. The `search` object can be used to describe the search parameters for the endpoint `?key=value`. The `headers` can be used to pass authentication tokens or other necessary headers for the API. The `description` field provides context about the Rest operation to the agent, helping it understand what the operation does and how to use it.
 
 1. A `GET` request to retrieve all posts.
 2. A `GET` request to retrieve a specific post by ID.
