@@ -38,7 +38,7 @@ export const folders = async (foldersInit: Folder[]) =>
         folder.connections = [];
       }
       return folder;
-    })
+    }),
   );
 /**
  * Factory function to create a data source from a connection ID and returns the generated connection class and connection information.
@@ -49,7 +49,7 @@ export const folders = async (foldersInit: Folder[]) =>
 export const getSource = async <P = unknown>(
   request: ActionRequest<P>,
   foldersInit: Folder[],
-  shouldConnect = true
+  shouldConnect = true,
 ): Promise<{ source: DataSource; connection: { id: string; type: string } }> => {
   const connectionId = request.connectionId;
   const connection = (await folders(foldersInit))

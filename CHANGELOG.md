@@ -55,3 +55,11 @@
 - Updated
   - Improved the parameter information and descriptions for all tools to make it clearer what each tool does and when to use them.
   - Updated the connections response for better clarity and usability.
+
+## 1.6.x - 2026-03-28
+
+- Added
+  - Created chat skills for each data store to help reduce the number of tokens used in interactions and for the tool to make better decisions.
+    - This requires skill support in vscode (tested in vscode `1.109.x`).
+    - Use version `1.5.x` if you do not have skill support in your vscode version.
+  - Created a `agents.instructions.md` file with instructions on how to use the data store should be used by an agent.

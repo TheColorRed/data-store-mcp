@@ -72,13 +72,19 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
         \`INSERT\` - Inserts an item into a bucket.
         \`UPDATE\` - Updates an item in a bucket.
         \`DELETE\` - Deletes an item from a bucket.`),
-      bucket: z.string().describe('The S3 bucket name.'),
-      key: z.string().describe('The S3 object key or object prefix.'),
+      bucket: z
+        .string()
+        .describe('The S3 bucket name. This can also be provided in the connection configuration options.'),
+      key: z
+        .string()
+        .describe(
+          'The S3 object key or object prefix. This is required for all operations. For SELECT operations this can be a prefix to select multiple objects. For GET, INSERT, UPDATE, and DELETE this should be the full object key.',
+        ),
       sourceType: z.enum(['path', 'raw']).describe('The source type of the value for INSERT or UPDATE operations.'),
       sourceValue: z
         .string()
         .describe(
-          'The value to be inserted or updated. If `sourceType` is `path`, this should be a file path. If `sourceType` is raw, this is the raw data.'
+          'The value to be inserted or updated. If `sourceType` is `path`, this should be a file path. If `sourceType` is raw, this is the raw data.',
         ),
       maxResults: z.number().min(1).default(100).describe('The maximum number of results to return.'),
     };
@@ -137,7 +143,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     else if (payloadObject.method === 'DELETE') return this.delete();
 
     throw new Error(
-      `Unsupported method: ${payloadObject.method} expected \`GET\`, \`SELECT\`, \`INSERT\`, \`UPDATE\`, or \`DELETE\`.`
+      `Unsupported method: ${payloadObject.method} expected \`GET\`, \`SELECT\`, \`INSERT\`, \`UPDATE\`, or \`DELETE\`.`,
     );
   }
   async insert(): Promise<object> {
@@ -159,7 +165,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
         Key: payloadObject.key,
         ContentType: mimeType,
         Body: body,
-      })
+      }),
     );
     return {
       eTag: result?.ETag,
@@ -182,7 +188,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
       new DeleteObjectCommand({
         Bucket: payloadObject.bucket,
         Key: payloadObject.key,
-      })
+      }),
     );
     return {
       deleteMarker: result?.DeleteMarker,
@@ -204,7 +210,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
           Prefix: payloadObject.key ?? '',
           MaxKeys: payloadObject.maxResults ?? 100,
           // Delimiter: '/',
-        })
+        }),
       ) ?? {}
     );
   }
@@ -213,7 +219,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     await this.safeClose(
       () => this.client?.destroy(),
       () => this.client?.destroy(),
-      2000
+      2000,
     );
     this.client = undefined;
   }

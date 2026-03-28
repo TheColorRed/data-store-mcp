@@ -1,6 +1,7 @@
 .vscode/**
 .github/**
 .vscode-test/**
+.venv/**
 src/**
 scripts/**
 .gitignore

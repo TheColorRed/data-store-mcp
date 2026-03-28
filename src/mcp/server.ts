@@ -24,7 +24,7 @@ const getFolders = async (): Promise<Folder[]> => {
   const files = await glob(
     foldersIn
       .map(f => [`${f}/.vscode/**/{connections,stores}.json`, `${f}/.vscode/**/*.{connection,store}.json`])
-      .flat()
+      .flat(),
   );
   return files.map((file: string) => {
     file = isWindows ? file.replace(/\//g, '\\') : file;
@@ -32,7 +32,7 @@ const getFolders = async (): Promise<Folder[]> => {
   });
 };
 
-const parameterInformation = await fs.readFile(`${extensionRoot}/docs/parameter-information.md`, 'utf-8');
+const parameterInformation = '';
 
 const server = new McpServer({
   name: 'MCP Server: Data Store',
@@ -42,22 +42,22 @@ const server = new McpServer({
 
 const toolActions = {
   connectionId: z.string(),
-  payload: z.union([z.record(z.any()), z.string()]),
+  payload: z.record(z.any()),
+  // payload: z.union([z.record(z.any()), z.string()]),
 };
 
 // This tool lists all available data source connections.
 server.tool(
   'connections',
-  'Lists all available data source connections. This should always be the first tool called when the users wants to start working with data such as a database (mysql, postgres, sqlite, etc.), http api request (rest or graphql, etc.), file server (ftp, s3, etc.) as it provides the necessary connection IDs to use with other data tools for accessing these data stores.',
+  'Lists all available data source connections and their IDs. **Always call this tool first** before any other data tool, as all other tools require a valid `connectionId`. Returns the available connections for databases (mysql, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). Without calling this first, you will not know which `connectionId` to use.',
+
   async () => {
     const connections = await Promise.all(
-      (
-        await folders(await getFolders())
-      ).map<Promise<{ id: string; type: string }>>(async folder => {
+      (await folders(await getFolders())).map<Promise<{ id: string; type: string }>>(async folder => {
         const data = JSON.parse(await fs.readFile(folder.dbFile, 'utf-8'));
         folder.connections = data ?? [];
         return data;
-      })
+      }),
     );
 
     // Find duplicate connection ids and throw an error.
@@ -81,14 +81,15 @@ server.tool(
       throw new Error(errorMessage);
     }
 
-    const docs = await fs.readFile(`${extensionRoot}/docs/connections.md`, 'utf-8');
-    return returnText(connections, docs, parameterInformation);
-  }
+    const docs = await fs.readFile(`${extensionRoot}/docs/connection.md`, 'utf-8');
+    return returnText(connections, docs); //, parameterInformation);
+  },
 );
 
 server.tool(
   'payload',
-  'The payload for the data source. This should always be run after the **#connections** tool, as it is used to provide additional information so the agent can better understand how to interact with the data source. This should be run before any other tool except for **#connections**.',
+  'Returns the expected payload structure (as a Zod schema) for a given connection. Call this after **#connections** and before making any query, to understand how to correctly format the `payload` parameter. If a SKILL is available for this connection, **always** read the SKILL file too, as it may provide additional payload requirements and examples.',
+
   {
     connectionId: z.string(),
   },
@@ -100,16 +101,17 @@ server.tool(
       source.close();
     } catch {}
     return returnText(
-      `The following is the payload information for the data source, this is how it should be structured when making a request:`,
-      payload
+      `The following "zod" is the payload information for the data source, this is how it should be structured when making a request:\n`,
+      payload,
     );
-  }
+  },
 );
 
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
-  'Lists the schema of a specific table/collection if `tableName` is provided within the payload. This should usually be run after the **#payload** tool and when the schema is not currently known for the data source. Otherwise gets the schema of all tables/collections.\n\nNote that for some data sources this may not be possible as they may not have the concept of a schema.',
+  'Returns the column/field definitions and structure of a table or collection in the data source. Use this when you need to know what fields, types, or columns exist before writing a query. Provide a `tableName` in the payload to get the schema for a specific table, or omit it to retrieve schemas for all tables/collections. Run this after **#payload** when the data structure is unknown. Note: not all data sources support schemas.',
+
   {
     ...toolActions,
     payload: toolActions.payload.optional(),
@@ -127,14 +129,15 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 // This tool runs a mutation query on the data source.
 // If the query is not a mutation query, it returns an error message.
 server.tool(
   'mutation',
-  `Allows for the ability to run any type of query, this is un-restrictive and can be dangerous to run if not used properly. However, it should only be used if the **#insert**, **#update**, or **#delete** tools cannot be used. This should mostly be used as a "Last Resort" kind of tool.\n${parameterInformation}`,
+  `Executes an unrestricted, arbitrary query or command against the data source. This is a **last resort** tool — only use it when **#insert**, **#update**, or **#delete** cannot accomplish the task (e.g. DDL statements like CREATE TABLE, DROP, ALTER, or complex multi-statement operations). This tool bypasses query-type validation and can be destructive if misused. Prefer the specific tools (**#select**, **#insert**, **#update**, **#delete**) for standard CRUD operations. **Note:** This tool can still be rejected by the data source.\n${parameterInformation}`,
+
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());
@@ -149,14 +152,14 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 // This tool runs a select query on the data source.
 // If the query is not a select, it returns an error message.
 server.tool(
   'select',
-  `Runs a select query on the data source selecting data from the data source.\n${parameterInformation}`,
+  `Retrieves and returns data from the data source without modifying it. Use this tool when you need to READ, VIEW, FETCH, GET, QUERY, SHOW, LIST, or DISPLAY data. This is the primary tool for retrieving information from the data source. Common use cases include: viewing records, getting specific data, listing entries, querying information, displaying contents, or any read-only operation. This tool does NOT modify, insert, update, or delete data.\n${parameterInformation}`,
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());
@@ -174,14 +177,15 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 // This tool runs an insert query on the data source.
 // If the query is not an insert, it returns an error message.
 server.tool(
   'insert',
-  `Runs an insert query on the data source inserting data into the data source.\n${parameterInformation}`,
+  `Creates and adds new records to the data source. Use this tool when you need to ADD, CREATE, SAVE, or INSERT new data.\n${parameterInformation}`,
+
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());
@@ -199,14 +203,15 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 // This tool runs an update query on the data source.
 // If the query is not an update, it returns an error message.
 server.tool(
   'update',
-  `Runs an update query on the data source updating data in the data source.\n${parameterInformation}`,
+  `Modifies existing records in the data source. Use this tool when you need to CHANGE, EDIT, MODIFY, or UPDATE data that already exists.\n${parameterInformation}`,
+
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());
@@ -224,14 +229,15 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 // This tool runs a delete query on the data source.
 // If the query is not a delete, it returns an error message.
 server.tool(
   'delete',
-  `Runs a delete query on the data source deleting data from the data source.\n${parameterInformation}`,
+  `Permanently removes records from the data source. Use this tool ONLY when you need to REMOVE, DESTROY, or DELETE existing data. This tool does NOT read or return data — use **#select** if you want to READ or VIEW data. This tool only accepts DELETE operations and will reject SELECT, INSERT, or UPDATE queries.\n${parameterInformation}`,
+
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());
@@ -249,7 +255,7 @@ server.tool(
     }
     source.close();
     return returnText(result);
-  }
+  },
 );
 
 const transport = new StdioServerTransport();

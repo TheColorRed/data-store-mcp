@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Use AI to connect to different data stores using the Model Context Protocol (MCP).",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",
@@ -45,6 +45,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:.vscode/**/stores.json",
     "workspaceContains:.vscode/**/*.store.json",
     "workspaceContains:.vscode/**/connections.json",
@@ -61,7 +62,31 @@
         "url": "./out/schemas/connection.schema.json"
       }
     ],
-    "commands": [],
+    "chatInstructions": [
+      {
+        "path": "./out/docs/agents.instructions.md"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./out/docs/skills/data-store-sql/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-no-sql/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-s3/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-rest/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-ftp/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-graphql/SKILL.md"
+      }
+    ],
     "mcpServerDefinitionProviders": [
       {
         "id": "data-store-mcp",
@@ -87,7 +112,7 @@
     "@types/node": "22.x",
     "@types/pg": "^8.15.5",
     "@types/mime-types": "^3.0.1",
-    "@types/vscode": "^1.102.0",
+    "@types/vscode": "^1.109.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "chokidar-cli": "^3.0.0",
@@ -97,7 +122,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
-    "@modelcontextprotocol/sdk": "^1.17.1",
+    "@modelcontextprotocol/sdk": "1.17.1",
     "basic-ftp": "^5.0.5",
     "fast-glob": "^3.3.3",
     "graphql": "^16.11.0",

@@ -104,7 +104,10 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   abstract showSchema(): Promise<ReturnType>;
 
   readonly payload: P;
-  constructor(readonly connectionConfig: DataSourceConfig<Cfg>, readonly request: ActionRequest<P>) {
+  constructor(
+    readonly connectionConfig: DataSourceConfig<Cfg>,
+    readonly request: ActionRequest<P>,
+  ) {
     this.payload = this.getPayloadObject(request);
   }
   /**
@@ -116,8 +119,8 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
       missingKeys.length > 1
         ? `The payload is missing the following keys: \`${missingKeys.join('`, `')}\`.\n`
         : missingKeys.length === 1
-        ? `The payload is missing the following key \`${missingKeys[0]}\`.\n`
-        : '';
+          ? `The payload is missing the following key \`${missingKeys[0]}\`.\n`
+          : '';
     return `${missingKeyString}To get a valid \`payload\`, run the #payload tool.`;
   }
   /**
@@ -129,8 +132,8 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
       invalidKeyValues.length > 1
         ? `The payload has invalid values for the following keys: \`${invalidKeyValues.join('`, `')}\`.\n`
         : invalidKeyValues.length === 1
-        ? `The payload has an invalid value for the following key: \`${invalidKeyValues[0]}\`.\n`
-        : '';
+          ? `The payload has an invalid value for the following key: \`${invalidKeyValues[0]}\`.\n`
+          : '';
     return `${missingKeyString}To get a valid \`payload\`, run the #payload tool.`;
   }
   /**
@@ -144,7 +147,7 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   protected async safeClose(
     closeFn: () => Promise<any> | void,
     fallbackFn?: () => void | Promise<void>,
-    timeoutMs = 2000
+    timeoutMs = 2000,
   ): Promise<void> {
     let closed = false;
     try {
@@ -202,7 +205,7 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
 
 export abstract class SqlDataSource<
   P extends DatabasePayloadBase = DatabasePayloadBase,
-  Cfg = unknown
+  Cfg = unknown,
 > extends DataSource<P, Cfg> {
   abstract select(): Promise<ReturnType>;
   abstract mutation(): Promise<ReturnType>;
@@ -222,9 +225,24 @@ export abstract class SqlDataSource<
   }
   protected sqlPayloadInformation(): PayloadDescription<DatabasePayloadBase> {
     return {
-      sql: z.string().describe('Required SQL query to execute'),
-      params: z.record(z.any()).optional().describe('Optional parameters for the SQL query'),
-      tableName: z.string().optional().describe('Optional table name for the SQL query'),
+      sql: z.string().describe('Required SQL query to execute.'),
+      params: z
+        .record(z.any())
+        .optional()
+        .describe(
+          `Optional parameters for the SQL query for prepared statements.
+This should be an array or object, depending on the database driver.
+- MySQL -- uses an array for \`?\` (values) and \`??\` (columns) placeholders.
+- Postgres -- uses an array for \`$1, $2, ...\` placeholders.
+- SQLite -- uses an array for \`?\` placeholders.
+- MSSQL -- uses an array for \`@\` placeholders.`,
+        ),
+      tableName: z
+        .string()
+        .optional()
+        .describe(
+          'Optional table name for the SQL query. This is used for better schema inference and is not required for query execution.',
+        ),
     };
   }
   /**

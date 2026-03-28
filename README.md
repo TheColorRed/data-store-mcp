@@ -140,7 +140,7 @@ This will then do the following:
 
 ## Setup a data store
 
-To add connections to the data store, create one or more JSON files in the `.vscode` folder/subfolder of your workspace. The following file names are supported:
+To add connections to the data store, create one or more JSON files in the `.vscode` folder/subfolder of your workspace. For example, `.vscode/mysql/my-mysql-1.store.json`. The following file names are supported:
 
 - `connections.json` or `stores.json`: This file is used to define multiple connections in an array format.
 - `*.connection.json` or `*.store.json`: These files are used to define a single connection or store (note that there is no (`s`) after `connection` or `store`).
@@ -188,9 +188,9 @@ Depending on the file type, the file will contain either an array of connections
 
 #### Placeholders
 
-The agent will usually replace placeholders in `urls` and anywhere it deems appropriate as long as it is clear to the agent. For example, using `{"url": "https://api.example.com/posts/:id"}` the agent will replace `:id` with the actual post ID when making a request.
+The agent will replace placeholders in `urls` anywhere it deems appropriate as long as it is clear to the agent. For example, using `{"url": "https://api.example.com/posts/:id"}` the agent will replace `:id` with the actual post ID when making a request.
 
-You can use any type of placeholder that you would like as long as the agent can understand it. For example, you can use `:id`, `{id}`, or any other format that makes sense for your API.
+You can use any type of placeholder that you would like as long as the agent can understand it. For example, you can use `:id`, `{id}`, `@id`, or any other format that makes sense to you.
 
 #### Descriptions
 
@@ -282,7 +282,7 @@ A GraphQL connection has a `url`, and optional `headers`, and a `description` fi
 
 These are tools that the MCP uses to interact with the data store. The tools are registered in the MCP server and can be used in the agent's instructions.
 
-**Note:** Not all data sources support all tools due to how the store may work. For example, an API data source may not support getting tables if there is no concept of tables in the API. Or for GraphQL APIs, it may not be know if a mutation is an `INSERT`, `UPDATE`, or `DELETE` operation. In such cases, the agent may work unpredictably if it tries to use not fully supported tools.
+**Note:** Not all data sources support all tools due to how the store may work. For example, an API data source may not support getting tables if there is no concept of tables in the API. Or for GraphQL APIs, it may not know if a request is a mutation, `INSERT`, `UPDATE`, or `DELETE` operation. In such cases, the agent may work unpredictably if it tries to use not fully supported tools.
 
 ### `connections` (full support)
 
@@ -304,7 +304,7 @@ This tool will get the full data store schema, unless a specific table is reques
 
 ### Executable commands
 
-**Note:** For SQL database, queries are validated using the [node-sql-parser](https://www.npmjs.com/package/node-sql-parser) package, which may not cover all edge cases. It is recommended to setup your database user with limited permissions to prevent any accidental data modification if the agent attempts to execute a database mutation query.
+**Note:** For SQL databases, queries are validated using the [node-sql-parser](https://www.npmjs.com/package/node-sql-parser) package, which may not cover all edge cases. It is recommended to setup your database user with limited permissions to prevent any accidental data modification if the agent attempts to execute a database mutation query.
 
 #### `select` (full support)
 
