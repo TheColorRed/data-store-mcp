@@ -99,7 +99,7 @@ export class Postgres extends SqlDataSource {
     await this.safeClose(
       async () => await this.connection.end(),
       () => (this.connection as any).destroy?.(),
-      2000
+      2000,
     );
   }
 }

@@ -158,7 +158,7 @@ export class MySQL extends SqlDataSource {
     await this.safeClose(
       async () => await this.connection?.end(),
       () => this.connection?.destroy(),
-      2000
+      2000,
     );
   }
 }

@@ -6,3 +6,4 @@ node_modules
 *.zip
 data-store-mcp-*/
 .venv
+vsix

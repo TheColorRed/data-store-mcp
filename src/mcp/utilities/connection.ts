@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import path from 'path';
 import {
   DataSource,
   type ActionRequest,
@@ -32,7 +33,9 @@ export const folders = async (foldersInit: Folder[]) =>
     foldersInit.map(async folder => {
       try {
         const data = await fs.readFile(folder.dbFile, 'utf-8');
-        folder.connections = JSON.parse(data) ?? [];
+        const parsed = JSON.parse(data);
+        // Handle both array and single object formats
+        folder.connections = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
       } catch (error) {
         console.error(`Error reading file ${folder.dbFile}:`, error);
         folder.connections = [];
@@ -52,19 +55,47 @@ export const getSource = async <P = unknown>(
   shouldConnect = true,
 ): Promise<{ source: DataSource; connection: { id: string; type: string } }> => {
   const connectionId = request.connectionId;
-  const connection = (await folders(foldersInit))
-    .flatMap(folder => folder.connections)
-    .find(conn => conn.id === connectionId) as DataSourceConfig | undefined;
+  const allFolders = await folders(foldersInit);
+
+  // Find the connection and track which folder it came from
+  let connection: DataSourceConfig | undefined;
+  let workspaceRoot: string | undefined;
+
+  for (const folder of allFolders) {
+    const found = folder.connections.find(conn => conn.id === connectionId);
+    if (found) {
+      connection = found as DataSourceConfig;
+      // Extract workspace root from the connection file path
+      // Connection files are in .vscode/ subdirectory of workspace
+      const dbFilePath = folder.dbFile;
+      const vscodeIndex = dbFilePath.lastIndexOf('.vscode');
+      if (vscodeIndex !== -1) {
+        workspaceRoot = dbFilePath.substring(0, vscodeIndex);
+      }
+      break;
+    }
+  }
+
   let source: DataSource;
   if (!connection || !connection.id)
     throw new Error(`Connection id not found: "${connectionId}". Try again using a different connection`);
   // Normalize the connection to a non-generic form to avoid TS generic mismatch
   const cfgAny = connection as DataSourceConfig<any>;
 
+  // For SQLite, resolve relative paths against workspace root
+  if (cfgAny.type === 'sqlite' && workspaceRoot && cfgAny.options.filename) {
+    const filename = cfgAny.options.filename as string;
+    // Check if it's a relative path (not absolute and not :memory:)
+    if (filename !== ':memory:' && !path.isAbsolute(filename)) {
+      cfgAny.options.filename = path.resolve(workspaceRoot, filename);
+    }
+  }
+
   // prettier-ignore
   switch (cfgAny.type) {
       // SQL Data Sources
       case 'mysql': source = new sources.MySQL(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
+      case 'mariadb': source = new sources.MySQL(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
       case 'sqlite': source = new sources.SQLite(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
       case 'postgres': source = new sources.Postgres(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
       case 'mssql': source = new sources.MSSQL(cfgAny, request as ActionRequest<DatabasePayloadBase>); break;
@@ -72,10 +103,13 @@ export const getSource = async <P = unknown>(
       case 'rest': source = new sources.Rest(cfgAny, request as ActionRequest<HttpPayloadBase>); break;
       case 'graphql': source = new sources.GraphQL(cfgAny, request as ActionRequest<sources.GraphQLPayload>); break;
       case 'ftp': source = new sources.FTP(cfgAny, request as ActionRequest<sources.FTPPayload>); break;
-      // NoSQL Data Sources
+      // Document Data Sources
       case 'mongodb': source = new sources.MongoDB(cfgAny, request as ActionRequest<sources.MongoPayload>); break;
+      // Key-Value Data Sources
+      case 'redis': source = new sources.Redis(cfgAny, request as ActionRequest<sources.RedisPayload>); break;
       // Other Data Sources
       case 's3': source = new sources.S3Source(cfgAny, request as ActionRequest<sources.S3Payload>); break;
+      case 'azure-blob': source = new sources.AzureBlobSource(cfgAny, request as ActionRequest<sources.AzureBlobPayload>); break;
       default: throw new Error(`Unsupported data type: ${connection.type}`);
     }
   if (!source) throw new Error(`Failed to create data source for connection: ${connectionId}`);

@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Use AI to connect to different data stores using the Model Context Protocol (MCP).",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",
@@ -24,12 +24,14 @@
     "sqlite",
     "store",
     "s3",
-    "ftp"
+    "azure-blob",
+    "ftp",
+    "redis"
   ],
   "icon": "images/icon.png",
   "type": "module",
   "engines": {
-    "vscode": "^1.102.0"
+    "vscode": "^1.109.0"
   },
   "repository": {
     "type": "git",
@@ -69,22 +71,25 @@
     ],
     "chatSkills": [
       {
-        "path": "./out/docs/skills/data-store-sql/SKILL.md"
-      },
-      {
-        "path": "./out/docs/skills/data-store-no-sql/SKILL.md"
-      },
-      {
-        "path": "./out/docs/skills/data-store-s3/SKILL.md"
-      },
-      {
-        "path": "./out/docs/skills/data-store-rest/SKILL.md"
+        "path": "./out/docs/skills/data-store-document/SKILL.md"
       },
       {
         "path": "./out/docs/skills/data-store-ftp/SKILL.md"
       },
       {
         "path": "./out/docs/skills/data-store-graphql/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-key-value/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-rest/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-s3/SKILL.md"
+      },
+      {
+        "path": "./out/docs/skills/data-store-sql/SKILL.md"
       }
     ],
     "mcpServerDefinitionProviders": [
@@ -108,10 +113,10 @@
     "copy-docs": "cp -r \"src/docs/\" out"
   },
   "devDependencies": {
+    "@types/mime-types": "^3.0.0",
     "@types/mssql": "^9.1.7",
     "@types/node": "22.x",
     "@types/pg": "^8.15.5",
-    "@types/mime-types": "^3.0.1",
     "@types/vscode": "^1.109.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
@@ -122,17 +127,19 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
+    "@azure/identity": "^4.13.0",
+    "@azure/storage-blob": "^12.31.0",
     "@modelcontextprotocol/sdk": "1.17.1",
     "basic-ftp": "^5.0.5",
     "fast-glob": "^3.3.3",
     "graphql": "^16.11.0",
+    "mime-types": "^3.0.2",
     "mongodb": "^6.18.0",
     "mssql": "^11.0.1",
     "mysql2": "^3.14.3",
     "node-sql-parser": "^5.3.10",
     "pg": "^8.16.3",
-    "sqlite3": "^5.1.7",
-    "zod": "^3.25.76",
-    "mime-type": "^3.0.1"
+    "redis": "^5.11.0",
+    "zod": "^3.25.76"
   }
 }

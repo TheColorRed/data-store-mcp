@@ -12,7 +12,7 @@ import glob from 'fast-glob';
 import fs from 'fs/promises';
 import os from 'os';
 import { z } from 'zod';
-import { ResponseType, SqlDataSource, type ReturnType } from './database-source.js';
+import { ResponseType, SqlDataSource, type ActionReturnType } from './database-source.js';
 import { folders, getSource, isAllowed, isAllowedError, returnText, type Folder } from './utilities/connection.js';
 
 const extensionRoot = process.argv[3];
@@ -49,7 +49,7 @@ const toolActions = {
 // This tool lists all available data source connections.
 server.tool(
   'connections',
-  'Lists all available data source connections and their IDs. **Always call this tool first** before any other data tool, as all other tools require a valid `connectionId`. Returns the available connections for databases (mysql, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). Without calling this first, you will not know which `connectionId` to use.',
+  'Lists all available data source connections and their IDs. **Always call this tool first** before any other data tool, as all other tools require a valid `connectionId`. Returns the available connections for databases (mysql, mariadb, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). Without calling this first, you will not know which `connectionId` to use.',
 
   async () => {
     const connections = await Promise.all(
@@ -121,7 +121,7 @@ server.tool(
 
     if (!isAllowed(source.connectionConfig, 'schema')) throw new Error(isAllowedError('schema'));
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.showSchema();
     } catch (error) {
@@ -144,7 +144,7 @@ server.tool(
 
     if (!isAllowed(source.connectionConfig, 'mutation')) throw new Error(isAllowedError('mutation'));
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.mutation();
     } catch (error) {
@@ -169,7 +169,7 @@ server.tool(
     if (source instanceof SqlDataSource && !source.isSelect())
       return returnText('The provided SQL query is not a SELECT statement.');
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.select();
     } catch (error) {
@@ -195,7 +195,7 @@ server.tool(
     if (source instanceof SqlDataSource && !source.isInsert())
       return returnText('The provided SQL query is not an INSERT statement.');
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.insert();
     } catch (error) {
@@ -221,7 +221,7 @@ server.tool(
     if (source instanceof SqlDataSource && !source.isUpdate())
       return returnText('The provided SQL query is not an UPDATE statement.');
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.update();
     } catch (error) {
@@ -247,7 +247,7 @@ server.tool(
     if (source instanceof SqlDataSource && !source.isDelete())
       return returnText('The provided SQL query is not a DELETE statement.');
 
-    let result: ReturnType;
+    let result: ActionReturnType;
     try {
       result = await source.delete();
     } catch (error) {

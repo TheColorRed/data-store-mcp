@@ -63,3 +63,21 @@
     - This requires skill support in vscode (tested in vscode `1.109.x`).
     - Use version `1.5.x` if you do not have skill support in your vscode version.
   - Created a `agents.instructions.md` file with instructions on how to use the data store should be used by an agent.
+
+## 1.7.x - 2026-04-09
+
+- Added
+  - Support for Redis.
+- Updated
+  - Replaced the sqlite module with the builtin `node:sqlite` module provided by node `22.5.x` and above (**Note:** currently node puts this behind an experimental flag). This should help allow the plugin to not error on platforms that are not windows and will also reduce the overall size of the plugin.
+  - Updated the formatting instructions for all SQL data stores.
+    - Skills recommend always quoting identifiers to prevent reserved word conflicts and reduce failed queries. This is now consistent across all SQL data stores.
+    - Skills recommend using prepared statements with parameters instead of hardcoding values directly into the SQL string. This is for security reasons to prevent SQL injection and is now consistent across all SQL data stores.
+      - This has been always supported but agents seemed to not be using it, so the instructions have been updated to make it more clear and to encourage its usage.
+
+## 1.8.x - 2026-04-11
+
+- Added
+  - Support for Azure Blob Storage.
+- Updated
+  - Updated Redis to support more commands and to have better formatting instructions.

@@ -11,7 +11,7 @@
       "properties": {
         "filename": {
           "type": "string",
-          "description": "Path to the SQLite database file."
+          "description": "Path to the SQLite database file. Relative paths (e.g., `./database.db` or `data/db.sqlite`) are resolved against the workspace root containing the connection file. Absolute paths (e.g., `C:\\data\\db.sqlite` or `/var/db/data.sqlite`) are used as-is. Use `:memory:` to create an in-memory database."
         },
         "mode": {
           "type": "number",

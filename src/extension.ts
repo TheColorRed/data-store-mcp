@@ -26,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
     provideMcpServerDefinitions: async () => {
       return [
         new vscode.McpStdioServerDefinition('Data Store', 'node', [
+          '--experimental-sqlite',
           path.join(__dirname, 'mcp', 'server.js'),
           `${JSON.stringify(folders.map(folder => folder.uri.fsPath))}`,
           __dirname,

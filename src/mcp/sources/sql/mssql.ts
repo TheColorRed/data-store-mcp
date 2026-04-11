@@ -85,7 +85,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
     await this.safeClose(
       async () => await this.connection.close(),
       () => (this.connection as any).close?.(),
-      2000
+      2000,
     );
   }
 }

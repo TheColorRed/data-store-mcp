@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import Stream from 'stream';
 import z from 'zod';
-import { DataSource, PayloadDescription, ReturnType } from '../../database-source.js';
+import { ActionReturnType, DataSource, PayloadDescription } from '../../database-source.js';
 
 export interface FTPPayload {
   method: 'GET' | 'INSERT' | 'UPDATE' | 'DELETE' | 'SELECT';
@@ -86,7 +86,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
   close(): Promise<void> {
     return this.safeClose(
       () => this.client.close(),
-      () => this.client.close()
+      () => this.client.close(),
     );
   }
   describePayload(): PayloadDescription<FTPPayload> {
@@ -104,7 +104,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
         .string()
         .optional()
         .describe(
-          'The value of the file that is being uploaded. When `sourceType` is `raw`, this should be a string containing the raw file contents. When `sourceType` is `path`, this should be a path to the file on the local filesystem.'
+          'The value of the file that is being uploaded. When `sourceType` is `raw`, this should be a string containing the raw file contents. When `sourceType` is `path`, this should be a path to the file on the local filesystem.',
         ),
       maxResults: z
         .number()
@@ -114,7 +114,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
       onlyDirectories: z.boolean().default(false).optional().describe('Whether to only return directories.'),
     };
   }
-  async select(): Promise<ReturnType> {
+  async select(): Promise<ActionReturnType> {
     // If the method is select, show the schema (list files)
     if (this.payload.method === 'SELECT') return this.showSchema();
 
@@ -138,7 +138,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
 
     return results;
   }
-  async insert(): Promise<ReturnType> {
+  async insert(): Promise<ActionReturnType> {
     let data: string | Stream.Readable;
 
     if (this.payload.method !== 'INSERT') throw new Error(this.getPayloadInvalidValueError('method'));
@@ -159,12 +159,12 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
       throw new Error(`Failed to upload file: ${(error as Error).message}`);
     }
   }
-  update(): Promise<ReturnType> {
+  update(): Promise<ActionReturnType> {
     if (this.payload.method !== 'UPDATE') throw new Error(this.getPayloadInvalidValueError('method'));
 
     return this.insert();
   }
-  async delete(): Promise<ReturnType> {
+  async delete(): Promise<ActionReturnType> {
     if (this.payload.method !== 'DELETE') throw new Error(this.getPayloadInvalidValueError('method'));
     if (!this.payload.path) throw new Error(this.getPayloadMissingKeyError('path'));
 
@@ -176,7 +176,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
       throw new Error(`Failed to delete file: ${(error as Error).message}`);
     }
   }
-  mutation(): Promise<ReturnType> {
+  mutation(): Promise<ActionReturnType> {
     if (!this.payload.method) throw new Error(this.getPayloadMissingKeyError('method'));
 
     if (this.payload.method === 'SELECT') return this.select();
@@ -201,7 +201,7 @@ export class FTP<P extends FTPPayload> extends DataSource<P, FTPConfig> {
   isDelete(): Promise<boolean> | boolean {
     return this.payload.method === 'DELETE';
   }
-  async showSchema(): Promise<ReturnType> {
+  async showSchema(): Promise<ActionReturnType> {
     let maxResults = this.payload.maxResults ?? 100;
     if (maxResults === 0) maxResults = Infinity;
     const payloadPath = this.payload.path ?? '/';

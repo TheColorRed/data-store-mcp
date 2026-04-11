@@ -1,39 +1,74 @@
-import sqlite, { type Database } from 'sqlite3';
+import { DatabaseSync, type DatabaseSyncOptions, type StatementResultingChanges } from 'node:sqlite';
 import { SqlDataSource, type DatabasePayloadBase, type PayloadDescription } from '../../database-source.js';
 
-/**
- * Tiny helper to convert callback-style sqlite3 functions into promises.
- * Accepts a function with a Node-style callback and returns a function that
- * returns a Promise resolving with the callback's result.
- */
-const Promisify =
-  (fn: Function) =>
-  (...args: any[]) =>
-    new Promise((resolve, reject) =>
-      fn(...args, (err: Error | null, result: any) => (err ? reject(err) : resolve(result)))
-    );
+const SQLITE_OPEN_MODES: Record<number, DatabaseSyncOptions> = {
+  0: { readOnly: true },
+  1: { readOnly: false },
+  2: { readOnly: false },
+};
 
 export class SQLite<P extends DatabasePayloadBase> extends SqlDataSource<P> {
-  private connection!: Database;
+  private connection?: DatabaseSync;
 
   describePayload(): PayloadDescription<DatabasePayloadBase> {
     return this.sqlPayloadInformation();
   }
 
   async connect(): Promise<void> {
-    this.connection = new sqlite.Database(
-      this.connectionConfig.options.filename,
-      parseInt(this.connectionConfig.options.mode)
-    );
+    const filename = this.connectionConfig.options.filename;
+    const modeNumber = Number(this.connectionConfig.options.mode ?? 2);
+    const options = SQLITE_OPEN_MODES[modeNumber] ?? SQLITE_OPEN_MODES[2];
+
+    this.connection = new DatabaseSync(filename, {
+      ...options,
+      allowBareNamedParameters: true,
+    });
   }
+
+  /**
+   * Prepare a statement for execution.
+   * @param sql SQL string to prepare.
+   */
+  private getPreparedStatement(sql: string) {
+    if (!this.connection) throw new Error('SQLite connection is not initialized.');
+    return this.connection.prepare(sql);
+  }
+
+  /**
+   * Execute a SELECT query and return all rows.
+   * @param sql SQL string to execute.
+   * @param params Optional bound parameters.
+   */
+  private all(sql: string, params?: any): any[] {
+    const stmt = this.getPreparedStatement(sql);
+    if (params === undefined) {
+      return stmt.all();
+    }
+    return Array.isArray(params) ? stmt.all(...params) : stmt.all(params);
+  }
+
+  /**
+   * Execute a mutation statement and return the result metadata.
+   * @param sql SQL string to execute.
+   * @param params Optional bound parameters.
+   */
+  private run(sql: string, params?: any): StatementResultingChanges {
+    const stmt = this.getPreparedStatement(sql);
+    if (params === undefined) {
+      return stmt.run();
+    }
+    return Array.isArray(params) ? stmt.run(...params) : stmt.run(params);
+  }
+
   /**
    * Execute a statement that mutates the database.
    * @param payload action payload containing `sql`
    */
   async mutation(): Promise<any> {
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return await Promisify(this.connection.run.bind(this.connection))(this.payload.sql);
+    return this.run(this.payload.sql, this.payload.params);
   }
+
   /**
    * Run a SELECT query and return rows as an array.
    * @param payload action payload containing `sql`
@@ -41,55 +76,55 @@ export class SQLite<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async select(): Promise<any> {
     if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return await Promisify(this.connection.all.bind(this.connection))(this.payload.sql);
+    return this.all(this.payload.sql, this.payload.params);
   }
+
   /**
-   * Execute an INSERT statement and return the driver result or `true`.
+   * Execute an INSERT statement and return the driver result.
    * @param payload action payload containing `sql`
    */
   async insert(): Promise<any> {
     if (!this.isInsert()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return (await Promisify(this.connection.run.bind(this.connection))(this.payload.sql)) ?? true;
+    return this.run(this.payload.sql, this.payload.params);
   }
+
   /**
-   * Execute an UPDATE statement and return the driver result or `true`.
+   * Execute an UPDATE statement and return the driver result.
    * @param payload action payload containing `sql`
    */
   async update(): Promise<any> {
     if (!this.isUpdate()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return (await Promisify(this.connection.run.bind(this.connection))(this.payload.sql)) ?? true;
+    return this.run(this.payload.sql, this.payload.params);
   }
+
   /**
-   * Execute a DELETE statement and return the driver result or `true`.
+   * Execute a DELETE statement and return the driver result.
    * @param payload action payload containing `sql`
    */
   async delete(): Promise<any> {
     if (!this.isDelete()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return (await Promisify(this.connection.run.bind(this.connection))(this.payload.sql)) ?? true;
+    return this.run(this.payload.sql, this.payload.params);
   }
+
   /**
    * Return the CREATE statement for the named table from sqlite_master.
    * @param payload action payload with optional `tableName`
    */
   async showSchema(): Promise<any> {
     const tableName = this.payload.tableName ?? '';
-    return (
-      (await Promisify(this.connection.all.bind(this.connection))(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
-        [tableName]
-      )) ?? []
-    );
+    return this.all("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", [tableName]);
   }
+
   /** Close the sqlite database handle cleanly. */
   async close(): Promise<void> {
     if (!this.connection) return;
     await this.safeClose(
-      async () => await Promisify(this.connection.close.bind(this.connection))(),
-      () => (this.connection as any).close?.(),
-      2000
+      () => this.connection?.close(),
+      () => this.connection?.close(),
+      2000,
     );
   }
 }

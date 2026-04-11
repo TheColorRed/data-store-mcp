@@ -10,7 +10,7 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "A unique identifier for the connection."
+      "description": "A unique identifier for the connection.\n\nA good convention is to use the format <type>-<descriptive-name>, e.g. mysql-sales-db and mysql-analytics-db. This convention is useful when you have multiple connections of the same type and need to differentiate between them."
     },
     "type": {
       "type": "string",
@@ -18,11 +18,15 @@
     },
     "description": {
       "type": "string",
-      "description": "A description of the connection. This can help the agent better choose the right connection."
+      "description": "A description of the connection. This can help the agent better choose the right connection. The better the description, the better the agent can choose the right connection. This should be semi-detailed and include information about what the connection is used for. Additional information can be stored in the metadata field, but the description should be detailed enough for the agent to make a decision on which connection to use based on the description alone."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata about the connection that can be used by the agent for making decisions. This can include any relevant information about the connection that is not covered by the other properties."
     },
     "disallowedTools": {
       "type": "array",
-      "description": "A list of tools that are not allowed to run for this connection even if the tool is enabled in the editor.\nFor example, if you want to enable delete operations for one connection but not this one, you can add 'delete' to this list while keeping the tool active.",
+      "description": "A list of tools that are not allowed to run for this connection even if the tool is enabled in the editor.\nFor example, if you want to enable delete operations for one connection but not this one, you can add 'delete' to this list while keeping the tool active.\n\nIf your data store allows for limiting permissions for users at the connection level, you should prefer that over the use of this property, you can then use that username/password in the connection options. This property is more for data stores that do not have granular permissions and can be used to help guide the agent away from using certain tools with this connection.",
       "items": {
         "oneOf": [
           {
@@ -60,7 +64,7 @@
     },
     "options": {
       "type": "object",
-      "description": "The options for the database connection."
+      "description": "The options for the data source connection. The required and optional properties for this object will depend on the type of connection being made. Each connection type should have its own schema that defines the properties for the options object for that connection type. The schema defines the base options object, anything supported but not defined will be allowed and can be set in this object."
     }
   },
   "oneOf": [
@@ -87,6 +91,9 @@
     },
     {
       "$ref": "./mongodb.schema.json"
+    },
+    {
+      "$ref": "./redis.schema.json"
     },
     {
       "$ref": "./s3.schema.json"

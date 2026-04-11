@@ -4,7 +4,24 @@ import nodeSqlParser from 'node-sql-parser';
 import z, { ZodTypeAny, type ZodType } from 'zod';
 
 /** Supported data source types for the MCP server. */
-export type DataSourceTypes = 'mysql' | 'sqlite' | 'postgres' | 'mssql' | 'rest' | 'ftp' | 'graphql' | 'mongodb' | 's3';
+export type DataSourceTypes =
+  // Databases
+  | 'mysql'
+  | 'mariadb'
+  | 'sqlite'
+  | 'postgres'
+  | 'mssql'
+  // APIs
+  | 'rest'
+  | 'ftp'
+  | 'graphql'
+  // Document
+  | 'mongodb'
+  // Key-Value
+  | 'redis'
+  // Other
+  | 'azure-blob'
+  | 's3';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 /**
  * Generic connection configuration passed to data source implementations.
@@ -39,7 +56,7 @@ export type ActionRequest<T = string | Record<string, any>> = {
   payload?: T;
 };
 /** The return type of an action, such as select, insert, etc. */
-export type ReturnType = string | boolean | object | string[] | boolean[] | object[];
+export type ActionReturnType = string | boolean | object | string[] | boolean[] | object[] | null | undefined;
 /** The response type of an action, such as select, insert, etc. */
 export type ResponseType = string | boolean | object | Record<string, any>;
 /** The format for how a payload should be structured. */
@@ -87,11 +104,11 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   abstract describePayload(): PayloadDescription<object>;
 
   // Abstract methods for different operations
-  abstract select(): Promise<ReturnType>;
-  abstract insert(): Promise<ReturnType>;
-  abstract update(): Promise<ReturnType>;
-  abstract delete(): Promise<ReturnType>;
-  abstract mutation(): Promise<ReturnType>;
+  abstract select(): Promise<ActionReturnType>;
+  abstract insert(): Promise<ActionReturnType>;
+  abstract update(): Promise<ActionReturnType>;
+  abstract delete(): Promise<ActionReturnType>;
+  abstract mutation(): Promise<ActionReturnType>;
 
   // Abstract methods for testing the type of queries
   abstract isMutation(): Promise<boolean> | boolean;
@@ -101,7 +118,7 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   abstract isDelete(): Promise<boolean> | boolean;
 
   // Abstract methods for schema operations
-  abstract showSchema(): Promise<ReturnType>;
+  abstract showSchema(): Promise<ActionReturnType>;
 
   readonly payload: P;
   constructor(
@@ -114,12 +131,12 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
    * A message that hints to the agent to run the 'payload' tool.
    * @param missingKeys The missing key or keys in the payload. If not provided, it will return a generic payload error message.
    */
-  getPayloadMissingKeyError(...missingKeys: string[]) {
+  getPayloadMissingKeyError(...missingKeys: (string | { key: string; message: string })[]) {
     const missingKeyString =
       missingKeys.length > 1
-        ? `The payload is missing the following keys: \`${missingKeys.join('`, `')}\`.\n`
+        ? `The payload is missing the following keys: \n${missingKeys.map(kv => '  - ' + (typeof kv === 'string' ? `\`${kv}\`` : `\`${kv.key}\`` + ': ' + kv.message + '\n')).join('')}`
         : missingKeys.length === 1
-          ? `The payload is missing the following key \`${missingKeys[0]}\`.\n`
+          ? `The payload is missing the following key: ${typeof missingKeys[0] === 'string' ? `\`${missingKeys[0]}\`` : `\`${missingKeys[0].key}\`` + ': ' + missingKeys[0].message}.\n`
           : '';
     return `${missingKeyString}To get a valid \`payload\`, run the #payload tool.`;
   }
@@ -127,12 +144,12 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
    * A message that instructs the agent to run the 'payload' tool.
    * @param invalidKeyValues The invalid key or keys in the payload. If not provided, it will return a generic payload error message.
    */
-  getPayloadInvalidValueError(...invalidKeyValues: string[]) {
+  getPayloadInvalidValueError(...invalidKeyValues: (string | { key: string; message: string })[]) {
     const missingKeyString =
       invalidKeyValues.length > 1
-        ? `The payload has invalid values for the following keys: \`${invalidKeyValues.join('`, `')}\`.\n`
+        ? `The payload has invalid values for the following keys: \n${invalidKeyValues.map(kv => '  - ' + (typeof kv === 'string' ? `\`${kv}\`` : `\`${kv.key}\`` + ': ' + kv.message + '\n')).join('')}`
         : invalidKeyValues.length === 1
-          ? `The payload has an invalid value for the following key: \`${invalidKeyValues[0]}\`.\n`
+          ? `The payload has an invalid value for the following key: ${typeof invalidKeyValues[0] === 'string' ? `\`${invalidKeyValues[0]}\`` : `\`${invalidKeyValues[0].key}\`` + ': ' + invalidKeyValues[0].message}.\n`
           : '';
     return `${missingKeyString}To get a valid \`payload\`, run the #payload tool.`;
   }
@@ -207,21 +224,24 @@ export abstract class SqlDataSource<
   P extends DatabasePayloadBase = DatabasePayloadBase,
   Cfg = unknown,
 > extends DataSource<P, Cfg> {
-  abstract select(): Promise<ReturnType>;
-  abstract mutation(): Promise<ReturnType>;
-  abstract insert(): Promise<ReturnType>;
-  abstract update(): Promise<ReturnType>;
-  abstract delete(): Promise<ReturnType>;
-  abstract showSchema(): Promise<ReturnType>;
+  abstract select(): Promise<ActionReturnType>;
+  abstract mutation(): Promise<ActionReturnType>;
+  abstract insert(): Promise<ActionReturnType>;
+  abstract update(): Promise<ActionReturnType>;
+  abstract delete(): Promise<ActionReturnType>;
+  abstract showSchema(): Promise<ActionReturnType>;
   /**
    * Parse the given SQL query and return its AST (Abstract Syntax Tree).
    * @parm sql The SQL query to parse.
    */
   #parseQuery(sql: string) {
-    const { Parser } = nodeSqlParser;
+    let { Parser } = nodeSqlParser;
     const parser = new Parser();
-    const ast = parser.astify(sql);
-    return ast;
+    const opt = { database: 'MySQL' }; // Default to MySQL/MariaDB syntax
+    if (this.connectionConfig.type === 'postgres') opt.database = 'Postgresql';
+    if (this.connectionConfig.type === 'sqlite') opt.database = 'SQLite';
+    if (this.connectionConfig.type === 'mssql') opt.database = 'TransactSQL';
+    return parser.astify(sql, opt);
   }
   protected sqlPayloadInformation(): PayloadDescription<DatabasePayloadBase> {
     return {
@@ -308,21 +328,21 @@ This should be an array or object, depending on the database driver.
 }
 
 export abstract class NoSqlDataSource<P = unknown, Cfg = unknown> extends DataSource<P, Cfg> {
-  abstract select(): Promise<ReturnType>;
-  abstract mutation(): Promise<ReturnType>;
-  abstract insert(): Promise<ReturnType>;
-  abstract update(): Promise<ReturnType>;
-  abstract delete(): Promise<ReturnType>;
-  abstract showSchema(): Promise<ReturnType>;
+  abstract select(): Promise<ActionReturnType>;
+  abstract mutation(): Promise<ActionReturnType>;
+  abstract insert(): Promise<ActionReturnType>;
+  abstract update(): Promise<ActionReturnType>;
+  abstract delete(): Promise<ActionReturnType>;
+  abstract showSchema(): Promise<ActionReturnType>;
 }
 
 export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends DataSource<P, Cfg> {
-  abstract select(): Promise<ReturnType>;
-  abstract mutation(): Promise<ReturnType>;
-  abstract insert(): Promise<ReturnType>;
-  abstract update(): Promise<ReturnType>;
-  abstract delete(): Promise<ReturnType>;
-  abstract showSchema(): Promise<ReturnType>;
+  abstract select(): Promise<ActionReturnType>;
+  abstract mutation(): Promise<ActionReturnType>;
+  abstract insert(): Promise<ActionReturnType>;
+  abstract update(): Promise<ActionReturnType>;
+  abstract delete(): Promise<ActionReturnType>;
+  abstract showSchema(): Promise<ActionReturnType>;
 
   protected combinePayload(types: { [key: string]: ZodTypeAny } | ZodTypeAny) {
     const objectSchema =
@@ -400,12 +420,12 @@ export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends
 }
 
 export abstract class UnknownDataSource<Payload = unknown> extends DataSource<Payload> {
-  abstract select(): Promise<ReturnType>;
-  abstract mutation(): Promise<ReturnType>;
-  abstract insert(): Promise<ReturnType>;
-  abstract update(): Promise<ReturnType>;
-  abstract delete(): Promise<ReturnType>;
-  abstract showSchema(): Promise<ReturnType>;
+  abstract select(): Promise<ActionReturnType>;
+  abstract mutation(): Promise<ActionReturnType>;
+  abstract insert(): Promise<ActionReturnType>;
+  abstract update(): Promise<ActionReturnType>;
+  abstract delete(): Promise<ActionReturnType>;
+  abstract showSchema(): Promise<ActionReturnType>;
 
   isSelect() {
     return false;

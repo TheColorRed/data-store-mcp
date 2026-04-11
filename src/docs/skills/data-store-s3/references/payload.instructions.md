@@ -24,4 +24,6 @@ The payload for making any Amazon AWS S3 operation is a JSON object with the fol
    - This key can also be used in the #tool:data-store/schema tool to list objects in a specific directory/object.
 4. `maxResults` is used for the #tool:data-store/schema tool to limit the number of results returned. It defaults to 100.
 5. The `sourceType` key is required for `INSERT` and `UPDATE` operations. It should be either `path` or `raw`.
-6. The `sourceValue` key is required for `INSERT` and `UPDATE` operations. If `sourceType` is `path`, it should be a full filesystem path to a file on the local filesystem. If `sourceType` is `raw`, it should be the raw content to upload.
+6. The `sourceValue` key is required for `INSERT` and `UPDATE` operations. If `sourceType` is `path`, it should be a full filesystem path to a file on the local filesystem **NOT** a relative path. If `sourceType` is `raw`, it should be the raw content to upload.
+   - `raw` sourceType usually doesn't work well for binary files such as images, videos, PDFs, etc. and is better suited for text-based files such as CSVs, JSON files, text files, etc.
+   - For binary files, it's best to use the `path` sourceType and provide a filesystem path to the file to ensure the file is uploaded correctly without corruption.

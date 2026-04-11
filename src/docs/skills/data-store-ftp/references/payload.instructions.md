@@ -1,6 +1,6 @@
-# RESTful API Payload
+# FTP Payload
 
-The payload for making any RESTful API operation is a JSON object with the following structure:
+The payload for making any FTP operation is a JSON object with the following structure:
 
 ```json
 {

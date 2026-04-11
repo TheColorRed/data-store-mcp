@@ -9,7 +9,7 @@ These instructions are meant to provide guidance on how to use the tools availab
 
 ## Order of Tool Usage
 
-When using the tools available in this extension, it is important to use them in the correct order to ensure that you have the necessary information and context for preceding to the next step. Here is the recommended order of tool usage:
+When using the tools available in this extension, it is important to use them in the correct order to ensure that you have the necessary information and context for proceeding to the next step. Here is the recommended order of tool usage:
 
 1. #tool:data-store/connections - This tool should be used first to get a list of supported data sources and their connection IDs. This will give you the necessary information about the available data sources that you can interact with. This usually only needs to be called once at the beginning of your interactions with the data sources, unless you want to check for new connections or data sources that have been added since your last call.
 2. #tool:data-store/schema - After you have the connection ID for the data source you want to interact with, you can use this tool to get information about the schema of the data source, such as tables, columns, and other relevant information that will help you perform operations against the data source.

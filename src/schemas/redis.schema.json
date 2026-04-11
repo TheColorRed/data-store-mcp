@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "redis",
+      "description": "A Redis connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The Redis connection URL."
+        },
+        "socket": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "The Redis server host."
+            },
+            "port": {
+              "type": "number",
+              "description": "The Redis server port."
+            },
+            "path": {
+              "type": "string",
+              "description": "The path to the Redis server socket."
+            }
+          },
+          "additionalProperties": false
+        },
+        "username": {
+          "type": "string",
+          "description": "The username for Redis authentication (if required)."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password for Redis authentication (if required)."
+        }
+      }
+    }
+  }
+}
