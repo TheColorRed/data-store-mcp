@@ -138,7 +138,7 @@ const toAgentPayloadSchema = (payload: unknown): Record<string, AgentPayloadFiel
 // This tool lists all available data source connections.
 server.tool(
   'connections',
-  'Lists all available data source connections and their IDs. Call this tool only when `connectionId` is unknown, ambiguous, invalid, or stale. Reuse a known valid `connectionId` for subsequent operations instead of calling this tool before every query. Returns connections for databases (mysql, mariadb, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). This information rarely changes.',
+  'Lists all available data source connections and their IDs. Call this tool only when `connectionId` is unknown, ambiguous, invalid, or stale. For a new user request, use this tool before other data-store tools unless the current request explicitly provides the exact `connectionId`. Reuse a known valid `connectionId` for subsequent operations instead of calling this tool before every query. **If you are switching to a different execution tool (e.g., changing from mutation to select), do NOT call this tool again.** After this tool identifies the target connection, move on to the execution tool unless payload or schema context is actually missing. Returns connections for databases (mysql, mariadb, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). This information rarely changes.',
 
   async () => {
     const connections = await Promise.all(
@@ -177,7 +177,7 @@ server.tool(
 
 server.tool(
   'payload',
-  'Returns the expected payload structure (as a Zod schema) for a given connection. Call this only when payload shape is unknown, provider context changed, or validation indicates payload assumptions are stale. Reuse known payload shape for repeated operations against the same provider and pattern. Do not call this repeatedly with the same inputs in the same turn. If a SKILL is available for this connection, read the SKILL file for additional payload requirements and examples.',
+  'Returns the expected payload structure (as a Zod schema) for a given connection. Call this only when payload shape is unknown, provider context changed, or validation indicates payload assumptions are stale. Reuse known payload shape for repeated operations against the same provider and pattern. **Do not call this repeatedly if you simply made a mistake and are switching execution tools (e.g., from mutation to select).** Do not call this repeatedly with the same inputs in the same turn. After a successful payload lookup, proceed to the execution tool rather than repeating discovery. If a SKILL is available for this connection, read the SKILL file for additional payload requirements and examples.',
 
   {
     connectionId: z.string(),
@@ -196,7 +196,7 @@ server.tool(
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
-  'Returns the column/field definitions and structure of a table or collection in the data source. Use this only when field/column/key structure is unknown or stale, or when a schema mismatch error suggests drift. Provide a `tableName` in the payload to get schema for a specific table, or omit it to retrieve schemas for all tables/collections. Reuse known schema context when it is still valid. Do not call this repeatedly with the same inputs in the same turn. Note: not all data sources support schemas.',
+  'Returns the column/field definitions and structure of a table or collection in the data source. Use this only when field/column/key structure is unknown or stale, or when a schema mismatch error suggests drift. Provide a `tableName` in the payload to get schema for a specific table, or omit it to retrieve schemas for all tables/collections. Reuse known schema context when it is still valid. Do not call this repeatedly with the same inputs in the same turn. If you already have the needed tables, columns, join path, or fields from a prior result, do not call schema again; proceed to select, insert, update, delete, or mutation. Repeating the same schema call without new inputs is a mistake. Note: not all data sources support schemas.',
 
   {
     ...toolActions,
@@ -222,7 +222,7 @@ server.tool(
 // If the query is not a mutation query, it returns an error message.
 server.tool(
   'mutation',
-  `Executes an unrestricted, arbitrary query or command against the data source. This is a **last resort** tool — only use it when **#insert**, **#update**, or **#delete** cannot accomplish the task (e.g. DDL statements like CREATE TABLE, DROP, ALTER, or complex multi-statement operations). **Do not use this tool for read/list/search/filter requests**; use **#select** for all read-only retrieval. This tool bypasses query-type validation and can be destructive if misused. Prefer the specific tools (**#select**, **#insert**, **#update**, **#delete**) for standard CRUD operations. **Note:** This tool can still be rejected by the data source.\n${parameterInformation}`,
+  `Executes an unrestricted, arbitrary query or command against the data source. This is a **last resort** tool — only use it when **#insert**, **#update**, or **#delete** cannot accomplish the task (e.g. DDL statements like CREATE TABLE, DROP, ALTER, or complex multi-statement operations). **Do not use this tool for read/list/search/filter requests**; use **#select** for all read-only retrieval. **Do not use this tool for metadata discovery commands such as SHOW TABLES, SHOW CREATE TABLE, DESCRIBE, EXPLAIN, PRAGMA, or similar schema-inspection requests**; use **#connections** to resolve the source and **#schema** for structure discovery. This tool bypasses query-type validation and can be destructive if misused. Prefer the specific tools (**#select**, **#insert**, **#update**, **#delete**) for standard CRUD operations. **Note:** This tool can still be rejected by the data source.\n${parameterInformation}`,
 
   toolActions,
   async request => {
@@ -245,7 +245,7 @@ server.tool(
 // If the query is not a select, it returns an error message.
 server.tool(
   'select',
-  `Retrieves and returns data from the data source without modifying it. Use this tool when you need to READ, VIEW, FETCH, GET, QUERY, SHOW, LIST, or DISPLAY data. This is the primary tool for retrieving information from the data source. Common use cases include: viewing records, getting specific data, listing entries, querying information, displaying contents, or any read-only operation. This tool does NOT modify, insert, update, or delete data.\n${parameterInformation}`,
+  `Retrieves and returns data from the data source without modifying it. Use this tool when you need to READ, VIEW, FETCH, GET, QUERY, SHOW, LIST, or DISPLAY data. This is the primary tool for retrieving information from the data source. Common use cases include: viewing records, getting specific data, listing entries, querying information, displaying contents, or any read-only operation. For follow-up reads in the same provider or database context, prefer this tool directly instead of repeating discovery tools unless an actual validation or schema mismatch error occurs. This tool does NOT modify, insert, update, or delete data.\n${parameterInformation}`,
   toolActions,
   async request => {
     const { source } = await getSource(request, await getFolders());

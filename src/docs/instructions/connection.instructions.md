@@ -9,6 +9,8 @@ description: 'These instructions provide guidance on how connections work and wh
 
 Connections are configured in the workspace and each is assigned a unique `id`. When calling any data store tool, pass that `id` as the `connectionId` — the server resolves and opens the connection automatically. You do not need to know or include the host, credentials, or any other connection options when making tool calls.
 
+For a new user request, start with #tool:data-store/connections unless the current request already gives you the exact `connectionId`. Do not skip straight to `select`, `schema`, or `mutation` based only on a remembered connection from an earlier request.
+
 ## Skills 🥷
 
 You **MUST** read the proper skill to successfully complete the task at hand. Each skill has detailed information on how to use the data source. Not reading the skill will result in failure to complete the task.

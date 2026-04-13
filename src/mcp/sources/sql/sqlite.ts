@@ -110,12 +110,16 @@ export class SQLite<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   }
 
   /**
-   * Return the CREATE statement for the named table from sqlite_master.
+   * Return the schema of the database or a specific table if `tableName` is provided in the payload.
    * @param payload action payload with optional `tableName`
    */
   async showSchema(): Promise<any> {
     const tableName = this.payload.tableName ?? '';
-    return this.all("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", [tableName]);
+    if (tableName)
+      return this.all(`SELECT * FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name=?`, [
+        tableName,
+      ]);
+    return this.all(`SELECT * FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
   }
 
   /** Close the sqlite database handle cleanly. */

@@ -24,12 +24,18 @@ This skill applies whenever the user's goal involves working with data stored in
 
 The SQL skill maps each operation type to a dedicated tool. Using the correct tool for each operation type ensures that the driver validates the query shape and returns the right result structure. The `mutation` tool is a catch-all for DDL and stored procedure calls that do not fit the standard CRUD pattern.
 
+Treat schema inspection as optional discovery, not a mandatory first step for every SQL request. If the relevant tables and columns are already known from the conversation or a previous tool result, execute the SQL request directly with the matching CRUD tool.
+
+For a new SQL request, resolve the target database with #tool:data-store/connections unless the current request already includes the exact `connectionId`. Do not jump straight to SQL execution using a remembered connection from an earlier turn.
+
 - #tool:data-store/select - Use this tool to execute `SELECT` queries and retrieve data from the database.
 - #tool:data-store/insert - Use this tool to execute `INSERT` queries and add new records to the database.
 - #tool:data-store/update - Use this tool to execute `UPDATE` queries and modify existing records in the database.
 - #tool:data-store/delete - Use this tool to execute `DELETE` queries and remove records from the database.
 - #tool:data-store/mutation - Use this tool to execute any type of SQL query, in addition to: `CREATE TABLE`, `ALTER TABLE`, `CALL my_procedure()`, etc. It should **NOT** be used in place of the other tool types for basic CRUD operations, but rather for more complex queries, database schema management, or executing stored procedures for things that do not fit into the basic CRUD mold.
-- Use the #tool:data-store/schema to get detailed metadata about the database, tables, and columns. If a `tableName` is provided, it will return metadata for that specific table. If no `tableName` is provided, it will return metadata for the entire database, including a list of all tables and their respective columns.
+- Use the #tool:data-store/schema to get detailed metadata about the database, tables, and columns only when that metadata is not already known or when an execution error suggests stale assumptions. If a `tableName` is provided, it will return metadata for that specific table. If no `tableName` is provided, it will return metadata for the entire database, including a list of all tables and their respective columns.
+- For follow-up read requests against the same database context, prefer #tool:data-store/select directly instead of repeating `schema`.
+- Do not use #tool:data-store/mutation for metadata lookups such as `SHOW TABLES`, `SHOW CREATE TABLE`, `DESCRIBE`, `EXPLAIN`, `PRAGMA`, or metadata-catalog exploration when the `schema` tool can provide that information.
 
 ## SQL Payload
 
@@ -39,7 +45,9 @@ Every SQL query is submitted as a JSON payload containing at minimum an `sql` fi
 
 ## SQL Payload Assets
 
-Provider-specific payload templates are provided as ready-to-use JSON files for each supported SQL operation. Each file demonstrates the correct placeholder syntax, identifier quoting style, and minimal required fields for that provider. Review these assets before generating a payload to ensure the query matches the target database dialect.
+Provider-specific payload templates are provided as ready-to-use JSON files for each supported SQL operation. Each file demonstrates the correct placeholder syntax, identifier quoting style, and minimal required fields for that provider. You **MUST** use the #tool:read/readFile on the linked path to view these examples before generating a payload to ensure the query matches the target database dialect.
+
+If execution fails due to syntax, missing tables, or constraints, immediately read `error-recovery.instructions.md` before attempting a fix.
 
 ### MySQL and MariaDB
 

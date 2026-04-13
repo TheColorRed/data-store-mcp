@@ -8,6 +8,7 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 
 - Leveraging the power of AI to assist with getting and managing your data across multiple data stores.
 - Generate reports and summaries of your data.
+- Get data to generate graphs and charts.
 - Getting information about your data store structure, schema, tables and much more.
 - Use AI to generate complex `SQL`/`GraphQL` queries that you may not know how to write.
 - Easily managing connections to multiple data stores through a simple `JSON` configuration.
@@ -49,6 +50,10 @@ The result is a database filled with the latest news about space exploration wit
     - [Forcing a tool to run](#forcing-a-tool-to-run)
     - [Tool failure](#tool-failure)
   - [Example](#example)
+    - [Generate Graphs](#generate-graphs)
+      - [Bar Graph Example](#bar-graph-example)
+      - [ER Diagram Example](#er-diagram-example)
+    - [Create and Update Data](#create-and-update-data)
   - [Setup a data store](#setup-a-data-store)
     - [.gitignore](#gitignore)
     - [Connection files](#connection-files)
@@ -120,6 +125,34 @@ For example:
 > I do not a have permission to update the `posts` table, you may need to enable the `update` tool to perform this action.
 
 ## Example
+
+Here are a few examples of different ways you can interact with the agent to perform different actions on your data store. These are just examples and the possibilities are endless.
+
+### Generate Graphs
+
+Get data from your data store and use it to generate graphs and charts.
+
+#### Bar Graph Example
+
+For example, you can query a `MySQL` database for recipes and how many you have in each category:
+
+```
+Create a bar graph showing the number of recipes by dish type (app, main, side, dessert, drink, etc.) from my recipes table.
+```
+
+![Example Bar Graph](./images/example-bar-graph.png)
+
+#### ER Diagram Example
+
+Draws an ER diagram of the `recipes` table in your database.
+
+```
+draw a mermaid ER diagram of the recipes table
+```
+
+![Example ER Diagram](./images/example-er-diagram.png)
+
+### Create and Update Data
 
 ```md
 In the sqlite database, do the following:

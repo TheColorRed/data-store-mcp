@@ -32,4 +32,4 @@ Treat these as high risk and call out impact before execution:
 
 - Prefer the least destructive valid tool.
 - Prefer scoped filters, explicit object keys, and bounded limits.
-- If a request is ambiguous and risk is high, ask for confirmation or provide a dry-run query/command for review.
+- If a request is ambiguous and risk is high, use the #tool:vscode/askQuestions tool to get explicit user confirmation before executing. Alternatively, provide a dry-run query/command for the user to review.

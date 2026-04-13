@@ -85,3 +85,4 @@
   - Updated Redis to support more commands and to have better formatting instructions.
   - Updated the skills with better information.
   - Simplified the payload tool response.
+  - Updated sqlite schema query.
