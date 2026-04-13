@@ -1,0 +1,7 @@
+{
+  "method": "UPDATE",
+  "container": "my-container",
+  "blob": "folder/file.txt",
+  "sourceType": "path",
+  "sourceValue": "./local-file-updated.txt"
+}

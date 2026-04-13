@@ -247,7 +247,7 @@ export abstract class SqlDataSource<
     return {
       sql: z.string().describe('Required SQL query to execute.'),
       params: z
-        .record(z.any())
+        .record(z.array(z.any()))
         .optional()
         .describe(
           `Optional parameters for the SQL query for prepared statements.

@@ -1,0 +1,12 @@
+{
+  "method": "UPDATE",
+  "tableName": "recipes",
+  "filter": {
+    "name": "Protein Pizza Bowl"
+  },
+  "value": {
+    "$set": {
+      "servings": 3
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "bucket": "my-bucket",
+  "key": "folder/file.txt"
+}

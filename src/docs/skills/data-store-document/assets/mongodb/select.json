@@ -1,0 +1,10 @@
+{
+  "method": "SELECT",
+  "tableName": "recipes",
+  "filter": {
+    "name": {
+      "$regex": "pizza",
+      "$options": "i"
+    }
+  }
+}

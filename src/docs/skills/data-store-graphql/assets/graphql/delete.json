@@ -1,0 +1,6 @@
+{
+  "query": "mutation DeleteRecipe($id: ID!) { deleteRecipe(id: $id) }",
+  "variables": {
+    "id": "42"
+  }
+}

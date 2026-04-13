@@ -1,5 +1,5 @@
 import { DefaultAzureCredential } from '@azure/identity';
-import { BlobServiceClient, BlockBlobClient } from '@azure/storage-blob';
+import { BlobServiceClient, BlockBlobClient, StorageSharedKeyCredential } from '@azure/storage-blob';
 import fs from 'fs/promises';
 import mime from 'mime-types';
 import z from 'zod';
@@ -7,7 +7,7 @@ import { PayloadDescription, UnknownDataSource } from '../../database-source.js'
 
 export interface AzureBlobPayload {
   method: 'GET' | 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
-  container: string;
+  container?: string;
   blob?: string;
   sourceType?: 'path' | 'raw';
   sourceValue?: string;
@@ -15,7 +15,9 @@ export interface AzureBlobPayload {
 }
 
 export interface AzureBlobConfig {
-  accountName: string;
+  accountName?: string;
+  accountKey?: string;
+  connectionString?: string;
 }
 
 export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSource<P> {
@@ -24,16 +26,29 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     if (this.client) return this.client;
 
     const payload = this.connectionConfig.options.connection as AzureBlobConfig;
-    if (!payload?.accountName)
-      throw new Error('Invalid Azure Blob connection payload. Ensure accountName is provided.');
+    if (payload?.connectionString) {
+      this.client = BlobServiceClient.fromConnectionString(payload.connectionString);
+      return this.client;
+    }
+
+    if (!payload?.accountName) {
+      throw new Error('Invalid Azure Blob connection payload. Ensure accountName or connectionString is provided.');
+    }
+
+    if (payload.accountKey) {
+      const credential = new StorageSharedKeyCredential(payload.accountName, payload.accountKey);
+      this.client = new BlobServiceClient(`https://${payload.accountName}.blob.core.windows.net`, credential);
+      return this.client;
+    }
+
     const credential = new DefaultAzureCredential();
     this.client = new BlobServiceClient(`https://${payload.accountName}.blob.core.windows.net`, credential);
     return this.client;
   }
 
   #getContainer() {
-    const payloadObject = this.payload as AzureBlobPayload;
-    return payloadObject.container ?? (this.connectionConfig.options.container as string) ?? '';
+    const { container } = this.payload as AzureBlobPayload;
+    return container ?? (this.connectionConfig.options.container as string) ?? '';
   }
 
   #validatePayload() {
@@ -63,7 +78,10 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
         \`DELETE\` - Deletes a blob.`),
       container: z
         .string()
-        .describe('The Azure Blob container name. This can also be provided in the connection configuration options.'),
+        .optional()
+        .describe(
+          'The Azure Blob container name. If not provided, the container specified in the connection configuration will be used.',
+        ),
       blob: z
         .string()
         .optional()
@@ -103,7 +121,8 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     if (!payloadObject.blob) throw new Error(this.getPayloadMissingKeyError('blob'));
 
     const client = this.client!;
-    const containerClient = client.getContainerClient(payloadObject.container);
+    const container = this.#getContainer();
+    const containerClient = client.getContainerClient(container);
     const blobClient = containerClient.getBlobClient(payloadObject.blob);
 
     const downloadResponse = await blobClient.download();
@@ -117,7 +136,7 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
       lastModified: downloadResponse.lastModified,
       metadata: downloadResponse.metadata,
       blobName: payloadObject.blob,
-      container: payloadObject.container,
+      container,
     };
   }
 
@@ -143,7 +162,8 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     if (!payloadObject.blob) throw new Error(this.getPayloadMissingKeyError('blob'));
 
     const client = this.client!;
-    const containerClient = client.getContainerClient(payloadObject.container);
+    const container = this.#getContainer();
+    const containerClient = client.getContainerClient(container);
     const blobClient: BlockBlobClient = containerClient.getBlockBlobClient(payloadObject.blob);
 
     let body: string | Buffer = payloadObject.sourceValue ?? '';
@@ -165,7 +185,7 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
       requestId: result.requestId,
       versionId: (result as any).versionId,
       blobName: payloadObject.blob,
-      container: payloadObject.container,
+      container: this.#getContainer(),
     };
   }
 
@@ -180,14 +200,15 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     if (!payloadObject.blob) throw new Error(this.getPayloadMissingKeyError('blob'));
 
     const client = this.client!;
-    const containerClient = client.getContainerClient(payloadObject.container);
+    const container = this.#getContainer();
+    const containerClient = client.getContainerClient(container);
     const blobClient = containerClient.getBlobClient(payloadObject.blob);
     const result = await blobClient.deleteIfExists();
     return {
       succeeded: result.succeeded,
       errorCode: result.errorCode,
       blobName: payloadObject.blob,
-      container: payloadObject.container,
+      container,
     };
   }
 
@@ -200,7 +221,7 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     } as AzureBlobPayload & { container: string };
 
     const client = this.client!;
-    const containerClient = client.getContainerClient(payloadObject.container);
+    const containerClient = client.getContainerClient(container);
     const prefix = payloadObject.blob ?? '';
     const maxResults = payloadObject.maxResults ?? 100;
 
@@ -213,7 +234,7 @@ export class AzureBlobSource<P extends AzureBlobPayload> extends UnknownDataSour
     }
 
     return {
-      container: payloadObject.container,
+      container,
       prefix,
       items: results,
       count: results.length,

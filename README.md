@@ -9,23 +9,41 @@ With the Data Store MCP, you can leverage the benefits of AI to manage, query, a
 - Leveraging the power of AI to assist with getting and managing your data across multiple data stores.
 - Generate reports and summaries of your data.
 - Getting information about your data store structure, schema, tables and much more.
-- Using AI to generate complex `SQL`/`GraphQL` queries that you may not know how to write.
+- Use AI to generate complex `SQL`/`GraphQL` queries that you may not know how to write.
 - Easily managing connections to multiple data stores through a simple `JSON` configuration.
 - Executing data operations directly from your code editor without switching contexts.
 - Testing API endpoints and validating responses.
 - Getting data from one data store and using it in another.
   - Getting the schema from a `MySQL` database and using it to generate a `GraphQL` query or a `Rest` operation.
   - Querying a `PostgreSQL` database and copying the data to a `MySQL` database.
+  - Getting data from a `Rest` API and storing it in a `MongoDB` database.
 - Using built-in tools to search the internet for information, then compiling that information into a structured format to store in your data store.
 - Using the agent to perform complex data operations that would otherwise require writing custom code.
 - Save content from the server locally to a file.
+
+### Example Use Case
+
+Lets say you are creating a collection of data from across the internet that you want to store in a database that will eventually be shown visible to your user base. You can use the agent to search the internet for relevant information, then compile that information into a structured format and store it in your database.
+
+Lets assume your database table has the following fields: `id`, `title`, `description`, `image`. You then also have an S3 bucket to store images. You can instruct the agent to do the following either in one or more prompts, a prompt file, or agent skill.
+
+```
+- Search the internet for the latest news about space exploration.
+- Find a relevant image for each news article.
+- Save the title, description into the database.
+- Upload the image to my S3 bucket in the `space-news` folder.
+- Update the image address in the database to point to the S3 image.
+```
+
+The result is a database filled with the latest news about space exploration with relevant images stored in S3 and linked in the database. You can then build a frontend to show this data to your users.
 
 # Table of Contents
 
 - [Data Store MCP](#data-store-mcp)
   - [Benefits](#benefits)
+    - [Example Use Case](#example-use-case)
 - [Table of Contents](#table-of-contents)
-  - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
+    - [⚠️ Safety Warning ⚠️](#️-safety-warning-️)
   - [The agent](#the-agent)
     - [Comments/Descriptions](#commentsdescriptions)
     - [Forcing a tool to run](#forcing-a-tool-to-run)

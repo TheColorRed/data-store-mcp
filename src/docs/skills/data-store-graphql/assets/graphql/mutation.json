@@ -1,0 +1,6 @@
+{
+  "query": "mutation PublishRecipe($id: ID!) { publishRecipe(id: $id) { id publishedAt } }",
+  "variables": {
+    "id": "42"
+  }
+}

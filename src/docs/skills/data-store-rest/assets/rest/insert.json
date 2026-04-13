@@ -1,0 +1,8 @@
+{
+  "endpoint": "https://api.example.com/recipes",
+  "method": "POST",
+  "payload": {
+    "name": "Pizza Pockets",
+    "dish_type": "main"
+  }
+}

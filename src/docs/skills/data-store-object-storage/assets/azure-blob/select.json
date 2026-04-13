@@ -1,0 +1,6 @@
+{
+  "method": "SELECT",
+  "container": "my-container",
+  "blob": "folder/",
+  "maxResults": 100
+}

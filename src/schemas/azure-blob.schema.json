@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "azure-blob",
+      "description": "An Azure Blob Storage connection."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "container": {
+          "type": "string",
+          "description": "The name of the Azure Blob Storage container to connect to."
+        },
+        "connection": {
+          "type": "object",
+          "properties": {
+            "accountName": {
+              "type": "string",
+              "description": "Azure Storage account name."
+            },
+            "accountKey": {
+              "type": "string",
+              "description": "Azure Storage account key. Use this when authenticating with shared key credentials."
+            },
+            "connectionString": {
+              "type": "string",
+              "description": "Azure Storage connection string. Use this when authenticating with a full storage connection string."
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "connectionString"
+              ]
+            },
+            {
+              "required": [
+                "accountName"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "connection"
+      ]
+    }
+  }
+}

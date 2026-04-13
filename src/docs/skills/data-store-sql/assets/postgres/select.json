@@ -1,0 +1,8 @@
+{
+  "sql": "SELECT \"id\", \"email\", \"status\" FROM \"users\" WHERE \"status\" = $1 ORDER BY \"id\" DESC LIMIT $2;",
+  "params": [
+    "active",
+    25
+  ],
+  "tableName": "users"
+}

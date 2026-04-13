@@ -1,0 +1,8 @@
+{
+  "sql": "SELECT TOP (@p1) [id], [email], [status] FROM [users] WHERE [status] = @p2 ORDER BY [id] DESC;",
+  "params": [
+    25,
+    "active"
+  ],
+  "tableName": "users"
+}

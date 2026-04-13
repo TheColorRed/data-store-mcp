@@ -75,9 +75,13 @@
     - Skills recommend using prepared statements with parameters instead of hardcoding values directly into the SQL string. This is for security reasons to prevent SQL injection and is now consistent across all SQL data stores.
       - This has been always supported but agents seemed to not be using it, so the instructions have been updated to make it more clear and to encourage its usage.
 
-## 1.8.x - 2026-04-11
+## 1.8.x - 2026-04-12
 
 - Added
   - Support for Azure Blob Storage.
+  - Additional instructions files for additional security and safety.
+  - Additional operations skill for agents to better determine which tools to call, when to call and what to do for failures.
 - Updated
   - Updated Redis to support more commands and to have better formatting instructions.
+  - Updated the skills with better information.
+  - Simplified the payload tool response.

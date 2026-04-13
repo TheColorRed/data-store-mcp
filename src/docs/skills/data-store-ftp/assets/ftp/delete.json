@@ -1,0 +1,4 @@
+{
+  "method": "DELETE",
+  "path": "/recipes/pizza.json"
+}

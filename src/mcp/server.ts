@@ -46,10 +46,99 @@ const toolActions = {
   // payload: z.union([z.record(z.any()), z.string()]),
 };
 
+type AgentPayloadField = {
+  type: string;
+  required: boolean;
+  description?: string;
+  valueType?: string;
+  itemType?: string;
+  options?: string[];
+};
+
+const zodTypeName = (schema: any): string => schema?._def?.typeName ?? '';
+
+const unwrapOptional = (schema: any): { schema: any; required: boolean } => {
+  let current = schema;
+  let required = true;
+
+  while (zodTypeName(current) === 'ZodOptional' || zodTypeName(current) === 'ZodDefault') {
+    required = false;
+    current = current?._def?.innerType;
+  }
+
+  return { schema: current, required };
+};
+
+const mapZodType = (schema: any): string => {
+  switch (zodTypeName(schema)) {
+    case 'ZodString':
+      return 'string';
+    case 'ZodNumber':
+      return 'number';
+    case 'ZodBoolean':
+      return 'boolean';
+    case 'ZodArray':
+      return 'array';
+    case 'ZodObject':
+      return 'object';
+    case 'ZodRecord':
+      return 'record';
+    case 'ZodEnum':
+      return 'enum';
+    case 'ZodUnion':
+      return 'union';
+    case 'ZodAny':
+      return 'any';
+    case 'ZodUnknown':
+      return 'unknown';
+    case 'ZodNull':
+      return 'null';
+    default:
+      return 'unknown';
+  }
+};
+
+const toAgentPayloadSchema = (payload: unknown): Record<string, AgentPayloadField> => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
+
+  return Object.fromEntries(
+    Object.entries(payload as Record<string, unknown>).map(([key, schema]) => {
+      const { schema: innerSchema, required } = unwrapOptional(schema);
+      const field: AgentPayloadField = {
+        type: mapZodType(innerSchema),
+        required,
+      };
+
+      const description = innerSchema?._def?.description;
+      if (description) field.description = description;
+
+      if (field.type === 'record') {
+        field.valueType = mapZodType(innerSchema?._def?.valueType);
+      }
+
+      if (field.type === 'array') {
+        field.itemType = mapZodType(innerSchema?._def?.type);
+      }
+
+      if (field.type === 'enum') {
+        const values = innerSchema?._def?.values;
+        if (Array.isArray(values)) field.options = values;
+      }
+
+      if (field.type === 'union') {
+        const options = innerSchema?._def?.options;
+        if (Array.isArray(options)) field.options = options.map((option: any) => mapZodType(option));
+      }
+
+      return [key, field];
+    }),
+  );
+};
+
 // This tool lists all available data source connections.
 server.tool(
   'connections',
-  'Lists all available data source connections and their IDs. **Always call this tool first** before any other data tool, as all other tools require a valid `connectionId`. Returns the available connections for databases (mysql, mariadb, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). Without calling this first, you will not know which `connectionId` to use.',
+  'Lists all available data source connections and their IDs. Call this tool only when `connectionId` is unknown, ambiguous, invalid, or stale. Reuse a known valid `connectionId` for subsequent operations instead of calling this tool before every query. Returns connections for databases (mysql, mariadb, postgres, sqlite, mssql), HTTP APIs (rest, graphql), and file servers (ftp, s3). This information rarely changes.',
 
   async () => {
     const connections = await Promise.all(
@@ -81,14 +170,14 @@ server.tool(
       throw new Error(errorMessage);
     }
 
-    const docs = await fs.readFile(`${extensionRoot}/docs/connection.md`, 'utf-8');
-    return returnText(connections, docs); //, parameterInformation);
+    // const docs = await fs.readFile(`${extensionRoot}/docs/connection.md`, 'utf-8');
+    return returnText(connections); //, parameterInformation);
   },
 );
 
 server.tool(
   'payload',
-  'Returns the expected payload structure (as a Zod schema) for a given connection. Call this after **#connections** and before making any query, to understand how to correctly format the `payload` parameter. If a SKILL is available for this connection, **always** read the SKILL file too, as it may provide additional payload requirements and examples.',
+  'Returns the expected payload structure (as a Zod schema) for a given connection. Call this only when payload shape is unknown, provider context changed, or validation indicates payload assumptions are stale. Reuse known payload shape for repeated operations against the same provider and pattern. Do not call this repeatedly with the same inputs in the same turn. If a SKILL is available for this connection, read the SKILL file for additional payload requirements and examples.',
 
   {
     connectionId: z.string(),
@@ -100,17 +189,14 @@ server.tool(
       payload = source.describePayload() as ResponseType;
       source.close();
     } catch {}
-    return returnText(
-      `The following "zod" is the payload information for the data source, this is how it should be structured when making a request:\n`,
-      payload,
-    );
+    return returnText(toAgentPayloadSchema(payload));
   },
 );
 
 // This tool lists the schema of a specific table in the data source.
 server.tool(
   'schema',
-  'Returns the column/field definitions and structure of a table or collection in the data source. Use this when you need to know what fields, types, or columns exist before writing a query. Provide a `tableName` in the payload to get the schema for a specific table, or omit it to retrieve schemas for all tables/collections. Run this after **#payload** when the data structure is unknown. Note: not all data sources support schemas.',
+  'Returns the column/field definitions and structure of a table or collection in the data source. Use this only when field/column/key structure is unknown or stale, or when a schema mismatch error suggests drift. Provide a `tableName` in the payload to get schema for a specific table, or omit it to retrieve schemas for all tables/collections. Reuse known schema context when it is still valid. Do not call this repeatedly with the same inputs in the same turn. Note: not all data sources support schemas.',
 
   {
     ...toolActions,
@@ -136,7 +222,7 @@ server.tool(
 // If the query is not a mutation query, it returns an error message.
 server.tool(
   'mutation',
-  `Executes an unrestricted, arbitrary query or command against the data source. This is a **last resort** tool — only use it when **#insert**, **#update**, or **#delete** cannot accomplish the task (e.g. DDL statements like CREATE TABLE, DROP, ALTER, or complex multi-statement operations). This tool bypasses query-type validation and can be destructive if misused. Prefer the specific tools (**#select**, **#insert**, **#update**, **#delete**) for standard CRUD operations. **Note:** This tool can still be rejected by the data source.\n${parameterInformation}`,
+  `Executes an unrestricted, arbitrary query or command against the data source. This is a **last resort** tool — only use it when **#insert**, **#update**, or **#delete** cannot accomplish the task (e.g. DDL statements like CREATE TABLE, DROP, ALTER, or complex multi-statement operations). **Do not use this tool for read/list/search/filter requests**; use **#select** for all read-only retrieval. This tool bypasses query-type validation and can be destructive if misused. Prefer the specific tools (**#select**, **#insert**, **#update**, **#delete**) for standard CRUD operations. **Note:** This tool can still be rejected by the data source.\n${parameterInformation}`,
 
   toolActions,
   async request => {

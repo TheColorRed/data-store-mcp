@@ -1,0 +1,7 @@
+{
+  "method": "DELETE",
+  "tableName": "recipes",
+  "filter": {
+    "name": "Protein Pizza Bowl"
+  }
+}

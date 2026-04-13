@@ -1,0 +1,7 @@
+{
+  "method": "INSERT",
+  "bucket": "my-bucket",
+  "key": "folder/file.txt",
+  "sourceType": "path",
+  "sourceValue": "./local-file.txt"
+}

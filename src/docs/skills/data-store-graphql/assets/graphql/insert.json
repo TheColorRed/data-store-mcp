@@ -1,0 +1,9 @@
+{
+  "query": "mutation CreateRecipe($input: CreateRecipeInput!) { createRecipe(input: $input) { id name } }",
+  "variables": {
+    "input": {
+      "name": "Pizza Pockets",
+      "dishType": "MAIN"
+    }
+  }
+}

@@ -10,6 +10,11 @@ import { SqlDataSource, type DatabasePayloadBase, type PayloadDescription } from
 export class Postgres extends SqlDataSource {
   /** The active PG client instance (not connected until connect() is called) */
   private connection!: Client;
+  private runQuery(sql: string) {
+    const params = this.payload.params;
+    if (Array.isArray(params)) return this.connection.query(sql, params);
+    return this.connection.query(sql);
+  }
   describePayload(): PayloadDescription<DatabasePayloadBase> {
     return this.sqlPayloadInformation();
   }
@@ -30,7 +35,7 @@ export class Postgres extends SqlDataSource {
   async mutation(): Promise<any> {
     try {
       if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-      const result = await this.connection.query(this.payload.sql);
+      const result = await this.runQuery(this.payload.sql);
       console.error('mutation success');
       return result;
     } catch (error) {
@@ -43,7 +48,7 @@ export class Postgres extends SqlDataSource {
   async select(): Promise<any> {
     if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const result = await this.connection.query(this.payload.sql);
+    const result = await this.runQuery(this.payload.sql);
     return result;
   }
   /**
@@ -52,7 +57,7 @@ export class Postgres extends SqlDataSource {
   async insert(): Promise<any> {
     if (!this.isInsert()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const result = await this.connection.query(this.payload.sql);
+    const result = await this.runQuery(this.payload.sql);
     return result;
   }
   /**
@@ -61,7 +66,7 @@ export class Postgres extends SqlDataSource {
   async update(): Promise<any> {
     if (!this.isUpdate()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const result = await this.connection.query(this.payload.sql);
+    const result = await this.runQuery(this.payload.sql);
     return result;
   }
   /**
@@ -70,7 +75,7 @@ export class Postgres extends SqlDataSource {
   async delete(): Promise<any> {
     if (!this.isDelete()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const result = await this.connection.query(this.payload.sql);
+    const result = await this.runQuery(this.payload.sql);
     return result;
   }
   /**

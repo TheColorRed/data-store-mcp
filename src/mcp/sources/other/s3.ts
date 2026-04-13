@@ -21,7 +21,7 @@ export interface S3Config {
 
 export interface S3Payload {
   method: 'GET' | 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
-  bucket: string;
+  bucket?: string;
   key?: string;
   sourceType?: 'path' | 'raw';
   sourceValue?: string;
@@ -44,15 +44,16 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     });
   }
   #getBucket() {
-    const payloadObject = this.payload;
-    return payloadObject.bucket ?? this.connectionConfig.options.bucket ?? '';
+    const { bucket } = this.payload;
+    return bucket ?? this.connectionConfig.options.bucket ?? '';
   }
   #validatePayload() {
     const bucket = this.#getBucket();
     const payloadObject = this.payload;
     if (bucket.length === 0) throw new Error(this.getPayloadMissingKeyError('bucket'));
-    if (typeof payloadObject.key === 'undefined') throw new Error(this.getPayloadMissingKeyError('key'));
     if (typeof payloadObject.method === 'undefined') throw new Error(this.getPayloadMissingKeyError('method'));
+    if (payloadObject.method !== 'SELECT' && typeof payloadObject.key === 'undefined')
+      throw new Error(this.getPayloadMissingKeyError('key'));
 
     if (payloadObject.method === 'INSERT' || payloadObject.method === 'UPDATE') {
       if (!payloadObject.sourceType) throw new Error(this.getPayloadMissingKeyError('sourceType'));
@@ -74,11 +75,15 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
         \`DELETE\` - Deletes an item from a bucket.`),
       bucket: z
         .string()
-        .describe('The S3 bucket name. This can also be provided in the connection configuration options.'),
+        .optional()
+        .describe(
+          'The S3 bucket name. If not provided, the bucket specified in the connection configuration will be used.',
+        ),
       key: z
         .string()
+        .optional()
         .describe(
-          'The S3 object key or object prefix. This is required for all operations. For SELECT operations this can be a prefix to select multiple objects. For GET, INSERT, UPDATE, and DELETE this should be the full object key.',
+          'The S3 object key or object prefix. Required for GET, INSERT, UPDATE, and DELETE. Optional for SELECT and defaults to an empty prefix when omitted.',
         ),
       sourceType: z.enum(['path', 'raw']).describe('The source type of the value for INSERT or UPDATE operations.'),
       sourceValue: z
@@ -97,11 +102,12 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     if (!this.client) await this.connect();
     if (!this.client) throw new Error('S3 client not initialized');
     const payloadObject = this.#validatePayload();
+    const bucket = this.#getBucket();
 
     if (payloadObject.method === 'SELECT') return this.showSchema();
 
     const command = new GetObjectCommand({
-      Bucket: payloadObject.bucket,
+      Bucket: bucket,
       Key: payloadObject.key,
     });
 
@@ -111,6 +117,8 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
     const body = await result?.Body?.transformToString();
 
     return {
+      bucket,
+      key: payloadObject.key,
       signedUrl,
       url: `${url.origin}${url.pathname}`,
       path: url.pathname,
@@ -149,6 +157,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
   async insert(): Promise<object> {
     if (!this.client) await this.connect();
     const payloadObject = this.#validatePayload();
+    const bucket = this.#getBucket();
     if (!['INSERT', 'UPDATE'].includes(payloadObject.method))
       throw new Error(this.getPayloadInvalidValueError('method'));
 
@@ -161,13 +170,15 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
 
     const result = await this.client?.send(
       new PutObjectCommand({
-        Bucket: payloadObject.bucket,
+        Bucket: bucket,
         Key: payloadObject.key,
         ContentType: mimeType,
         Body: body,
       }),
     );
     return {
+      bucket,
+      key: payloadObject.key,
       eTag: result?.ETag,
       versionId: result?.VersionId,
       checksumSHA1: result?.ChecksumSHA1,
@@ -183,14 +194,17 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
   async delete(): Promise<object> {
     if (!this.client) await this.connect();
     const payloadObject = this.#validatePayload();
+    const bucket = this.#getBucket();
     if (payloadObject.method !== 'DELETE') throw new Error(this.getPayloadInvalidValueError('method'));
     const result = await this.client?.send(
       new DeleteObjectCommand({
-        Bucket: payloadObject.bucket,
+        Bucket: bucket,
         Key: payloadObject.key,
       }),
     );
     return {
+      bucket,
+      key: payloadObject.key,
       deleteMarker: result?.DeleteMarker,
       versionId: result?.VersionId,
     };
@@ -203,16 +217,21 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
       bucket,
     };
 
-    return (
+    const result =
       this.client?.send(
         new ListObjectsV2Command({
-          Bucket: payloadObject.bucket,
+          Bucket: bucket,
           Prefix: payloadObject.key ?? '',
           MaxKeys: payloadObject.maxResults ?? 100,
           // Delimiter: '/',
         }),
-      ) ?? {}
-    );
+      ) ?? {};
+
+    return {
+      bucket,
+      prefix: payloadObject.key ?? '',
+      ...result,
+    };
   }
   async close(): Promise<void> {
     if (!this.client) return;

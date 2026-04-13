@@ -1,0 +1,6 @@
+{
+  "method": "UPDATE",
+  "destinationPath": "/recipes/pizza.json",
+  "sourceType": "raw",
+  "sourceValue": "{\"name\":\"Protein Pizza\"}"
+}

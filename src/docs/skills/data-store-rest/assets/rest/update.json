@@ -1,0 +1,7 @@
+{
+  "endpoint": "https://api.example.com/recipes/42",
+  "method": "PUT",
+  "payload": {
+    "name": "Protein Pizza Pockets"
+  }
+}

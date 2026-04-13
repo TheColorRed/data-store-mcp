@@ -1,0 +1,6 @@
+{
+  "method": "SELECT",
+  "bucket": "my-bucket",
+  "key": "folder/",
+  "maxResults": 100
+}

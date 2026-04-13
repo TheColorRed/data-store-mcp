@@ -97,6 +97,9 @@
     },
     {
       "$ref": "./s3.schema.json"
+    },
+    {
+      "$ref": "./azure-blob.schema.json"
     }
   ]
 }

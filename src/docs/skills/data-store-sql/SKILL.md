@@ -13,6 +13,8 @@ The SQL skill allows you to execute SQL queries against one or more databases an
 
 ## When To Use
 
+This skill applies whenever the user's goal involves working with data stored in a relational database. It covers both read and write operations, from a simple row lookup to a complex multi-table query or schema change. Use it for any task where SQL is the appropriate tool, regardless of the specific database engine involved.
+
 - Use this skill when the user wants to query or modify data in a SQL database.
 - Use this skill when the user needs database schema information such as tables, columns, or table definitions.
 - Use this skill when the user needs SQL dialect-specific guidance for MySQL, MariaDB, MSSQL, PostgreSQL, or SQLite.
@@ -20,7 +22,7 @@ The SQL skill allows you to execute SQL queries against one or more databases an
 
 ## Tool Usage
 
-There are multiple tools available for executing SQL queries, including:
+The SQL skill maps each operation type to a dedicated tool. Using the correct tool for each operation type ensures that the driver validates the query shape and returns the right result structure. The `mutation` tool is a catch-all for DDL and stored procedure calls that do not fit the standard CRUD pattern.
 
 - #tool:data-store/select - Use this tool to execute `SELECT` queries and retrieve data from the database.
 - #tool:data-store/insert - Use this tool to execute `INSERT` queries and add new records to the database.
@@ -31,13 +33,57 @@ There are multiple tools available for executing SQL queries, including:
 
 ## SQL Payload
 
-**ALWAYS** read this payload instructions document at least once before using the SQL skill to understand how to properly format the payload for making SQL queries, including the importance of using prepared statements with parameters to prevent SQL injection vulnerabilities.
+Every SQL query is submitted as a JSON payload containing at minimum an `sql` field. When the query includes dynamic values, those values must be passed in a separate `params` field using the provider-specific placeholder syntax rather than interpolated directly into the SQL string. Failing to use parameterized queries exposes the system to SQL injection vulnerabilities and is never acceptable.
 
 - [Payload](references/payload.instructions.md)
 
+## SQL Payload Assets
+
+Provider-specific payload templates are provided as ready-to-use JSON files for each supported SQL operation. Each file demonstrates the correct placeholder syntax, identifier quoting style, and minimal required fields for that provider. Review these assets before generating a payload to ensure the query matches the target database dialect.
+
+### MySQL and MariaDB
+
+MySQL and MariaDB use backtick-quoted identifiers and `?` positional placeholders. These assets demonstrate standard CRUD patterns and an `ALTER TABLE` mutation example following those conventions.
+
+- [MySQL/MariaDB SELECT payload](assets/mysql-mariadb/select.json)
+- [MySQL/MariaDB INSERT payload](assets/mysql-mariadb/insert.json)
+- [MySQL/MariaDB UPDATE payload](assets/mysql-mariadb/update.json)
+- [MySQL/MariaDB DELETE payload](assets/mysql-mariadb/delete.json)
+- [MySQL/MariaDB mutation payload](assets/mysql-mariadb/mutation.json)
+
+### MS SQL
+
+MS SQL uses square-bracket-quoted identifiers and named `@p1`, `@p2` placeholders when binding an array of params. These assets demonstrate the same CRUD and mutation patterns using the correct MS SQL conventions.
+
+- [MS SQL SELECT payload](assets/mssql/select.json)
+- [MS SQL INSERT payload](assets/mssql/insert.json)
+- [MS SQL UPDATE payload](assets/mssql/update.json)
+- [MS SQL DELETE payload](assets/mssql/delete.json)
+- [MS SQL mutation payload](assets/mssql/mutation.json)
+
+### PostgreSQL
+
+PostgreSQL uses double-quoted identifiers and `$1`, `$2` positional placeholders. These assets follow PostgreSQL conventions including `SERIAL` for auto-increment columns and `NOW()` for timestamps.
+
+- [PostgreSQL SELECT payload](assets/postgres/select.json)
+- [PostgreSQL INSERT payload](assets/postgres/insert.json)
+- [PostgreSQL UPDATE payload](assets/postgres/update.json)
+- [PostgreSQL DELETE payload](assets/postgres/delete.json)
+- [PostgreSQL mutation payload](assets/postgres/mutation.json)
+
+### SQLite
+
+SQLite uses double-quoted identifiers and `?` positional placeholders. It does not support `DATETIME` columns natively; use `TEXT` for date and time values and `CURRENT_TIMESTAMP` for defaults. The mutation example demonstrates an `ADD COLUMN` migration which is the only `ALTER TABLE` variant SQLite supports.
+
+- [SQLite SELECT payload](assets/sqlite/select.json)
+- [SQLite INSERT payload](assets/sqlite/insert.json)
+- [SQLite UPDATE payload](assets/sqlite/update.json)
+- [SQLite DELETE payload](assets/sqlite/delete.json)
+- [SQLite mutation payload](assets/sqlite/mutation.json)
+
 ## SQL Query Formatting
 
-**ALWAYS** read the formatting instructions for the specific database you are working with to understand how to properly format your SQL queries, including identifier quoting, reserved word handling, and best practices for that database system.
+Each SQL provider uses a different syntax for quoting identifiers, handling reserved words, and expressing common operations like stored procedure calls or auto-increment columns. Reading the provider-specific formatting reference before writing a query reduces errors and avoids repeated failures from reserved word conflicts. These references are the authoritative source for formatting conventions within this skill.
 
 - [MySQL/MariaDB Formatting](references/formatting-mysql-mariadb.instructions.md)
 - [MSSQL Formatting](references/formatting-mssql.instructions.md)

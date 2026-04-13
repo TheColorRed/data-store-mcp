@@ -1,0 +1,4 @@
+{
+  "method": "DELETE_TABLE",
+  "tableName": "recipes_archive"
+}

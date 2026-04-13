@@ -1,0 +1,6 @@
+{
+  "method": "INSERT",
+  "destinationPath": "/recipes/pizza.json",
+  "sourceType": "path",
+  "sourceValue": "./local/pizza.json"
+}

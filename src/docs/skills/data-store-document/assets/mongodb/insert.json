@@ -1,0 +1,9 @@
+{
+  "method": "INSERT",
+  "tableName": "recipes",
+  "value": {
+    "name": "Protein Pizza Bowl",
+    "dish_type": "main",
+    "servings": 2
+  }
+}

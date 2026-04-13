@@ -1,0 +1,7 @@
+{
+  "sql": "DELETE FROM \"users\" WHERE \"id\" = ?;",
+  "params": [
+    42
+  ],
+  "tableName": "users"
+}

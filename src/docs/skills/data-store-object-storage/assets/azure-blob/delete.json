@@ -1,0 +1,5 @@
+{
+  "method": "DELETE",
+  "container": "my-container",
+  "blob": "folder/file.txt"
+}

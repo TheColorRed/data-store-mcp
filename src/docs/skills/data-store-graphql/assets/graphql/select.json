@@ -1,0 +1,6 @@
+{
+  "query": "query Recipes($limit: Int!) { recipes(limit: $limit) { id name dishType } }",
+  "variables": {
+    "limit": 10
+  }
+}

@@ -10,6 +10,24 @@ import { SqlDataSource, type DatabasePayloadBase, type PayloadDescription } from
 export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   /** Active connection pool instance */
   private connection!: ConnectionPool;
+  private createRequest() {
+    const request = this.connection.request();
+    const params = this.payload.params as any[] | Record<string, any> | undefined;
+    if (!params) return request;
+
+    if (Array.isArray(params)) {
+      params.forEach((value, index) => {
+        request.input(`p${index + 1}`, value);
+      });
+      return request;
+    }
+
+    Object.entries(params).forEach(([key, value]) => {
+      request.input(key, value);
+    });
+
+    return request;
+  }
   describePayload(): PayloadDescription<DatabasePayloadBase> {
     return this.sqlPayloadInformation();
   }
@@ -24,7 +42,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
    * Execute a raw SQL mutation and return the recordset.
    */
   async mutation(): Promise<any> {
-    const sqlRequest = this.connection.request();
+    const sqlRequest = this.createRequest();
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
     const result = await sqlRequest.query(this.payload.sql);
     return result.recordset;
@@ -35,7 +53,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async select(): Promise<any> {
     if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const sqlRequest = this.connection.request();
+    const sqlRequest = this.createRequest();
     const result = await sqlRequest.query(this.payload.sql);
     return result.recordset;
   }
@@ -45,7 +63,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async insert(): Promise<any> {
     if (!this.isInsert()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const sqlRequest = this.connection.request();
+    const sqlRequest = this.createRequest();
     const result = await sqlRequest.query(this.payload.sql);
     return result.recordset;
   }
@@ -55,7 +73,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async update(): Promise<any> {
     if (!this.isUpdate()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const sqlRequest = this.connection.request();
+    const sqlRequest = this.createRequest();
     const result = await sqlRequest.query(this.payload.sql);
     return result.recordset;
   }
@@ -65,7 +83,7 @@ export class MSSQL<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async delete(): Promise<any> {
     if (!this.isDelete()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const sqlRequest = this.connection.request();
+    const sqlRequest = this.createRequest();
     const result = await sqlRequest.query(this.payload.sql);
     return result.recordset;
   }

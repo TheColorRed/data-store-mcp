@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "container": "my-container",
+  "blob": "folder/file.txt"
+}

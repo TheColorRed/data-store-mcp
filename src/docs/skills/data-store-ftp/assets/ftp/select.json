@@ -1,0 +1,6 @@
+{
+  "method": "SELECT",
+  "path": "/recipes",
+  "maxResults": 100,
+  "onlyDirectories": false
+}

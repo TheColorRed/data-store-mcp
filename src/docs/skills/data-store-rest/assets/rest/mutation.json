@@ -1,0 +1,7 @@
+{
+  "endpoint": "https://api.example.com/recipes/42/publish",
+  "method": "PATCH",
+  "payload": {
+    "published": true
+  }
+}

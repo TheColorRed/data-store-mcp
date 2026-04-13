@@ -1,0 +1,4 @@
+{
+  "sql": "ALTER TABLE [users] ADD [last_login_at] DATETIME2 NULL;",
+  "tableName": "users"
+}

@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Use AI to connect to different data stores using the Model Context Protocol (MCP).",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",
@@ -66,10 +66,22 @@
     ],
     "chatInstructions": [
       {
-        "path": "./out/docs/agents.instructions.md"
+        "path": "./out/docs/instructions/agents.instructions.md"
+      },
+      {
+        "path": "./out/docs/instructions/connection.instructions.md"
+      },
+      {
+        "path": "./out/docs/instructions/write-safety.instructions.md"
+      },
+      {
+        "path": "./out/docs/instructions/security-secrets.instructions.md"
       }
     ],
     "chatSkills": [
+      {
+        "path": "./out/docs/skills/data-store-operations/SKILL.md"
+      },
       {
         "path": "./out/docs/skills/data-store-document/SKILL.md"
       },
@@ -86,7 +98,7 @@
         "path": "./out/docs/skills/data-store-rest/SKILL.md"
       },
       {
-        "path": "./out/docs/skills/data-store-s3/SKILL.md"
+        "path": "./out/docs/skills/data-store-object-storage/SKILL.md"
       },
       {
         "path": "./out/docs/skills/data-store-sql/SKILL.md"
