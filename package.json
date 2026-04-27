@@ -2,7 +2,7 @@
   "name": "data-store-mcp",
   "displayName": "Data Store MCP",
   "description": "Use AI to connect to different data stores using the Model Context Protocol (MCP).",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "publisher": "TheColorRed",
   "keywords": [
     "language-model-tools",

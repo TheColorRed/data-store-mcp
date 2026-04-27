@@ -1,13 +1,13 @@
 ---
 name: data-store-ftp
-description: 'Use when working with FTP servers to list files, read file contents, upload files, overwrite files, or delete files.'
+description: 'ALWAYS load this skill before any FTP operation — even for simple file reads or directory listings. Skipping it is a leading cause of failures from missing remote path fields, wrong method values, and malformed upload payloads. Use when working with FTP servers to list directories, read file contents, upload new files, overwrite existing files, or delete remote files. This skill mandates: (1) reading the payload reference before constructing any request so required path and method fields are set correctly, (2) using select with the correct method for directory listing versus file content retrieval — these are different operations, (3) always providing a sourceValue and sourceType for upload and overwrite operations, and (4) preferring dedicated CRUD tools over mutation unless no specific tool fits. REST and object storage patterns do not apply to FTP. Co-load with domain skills — they provide context; this skill governs payload structure. They are complementary, not interchangeable.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 # FTP Servers
 
 Use this skill when the user needs to inspect or manage files on an FTP server. FTP operations are file-oriented, so payloads focus on remote paths, upload source values, and directory listing options instead of table or document structures. This skill provides consistent tool routing for list, read, upload, overwrite, and delete workflows.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 ## When To Use
 

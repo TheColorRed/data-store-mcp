@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [select.json](../assets/redis/select.json) to understand the expected payload shape for Redis SELECT operations, including required fields like `method` and `key`, and optional fields like `hField` and `hValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/redis/insert.json) to understand the expected payload shape for Redis INSERT operations, including required fields like `method`, `key`, and `value`, and optional fields like `hField` and `hValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/redis/update.json) to understand the expected payload shape for Redis UPDATE operations, including required fields like `method`, `key`, and `value`, and optional fields like `hField` and `hValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/redis/delete.json) to understand the expected payload shape for Redis DELETE operations, including required fields like `method` and `key`, and optional fields like `hField`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [mutation.json](../assets/redis/mutation.json) to understand the expected payload shape for Redis operations when using the generic mutation tool, including how to specify the `method` field along with required and optional fields for each operation type. This is crucial for properly formatting requests and avoiding validation errors when not using specific CRUD tools.
+
 # Redis Payload
 
 Redis operations use a method-driven payload with command-like method names. This reference documents the supported fields and how to route methods to the correct data-store tool. Use it when payload shape is unknown or stale.
@@ -45,11 +55,3 @@ Redis operations use a method-driven payload with command-like method names. Thi
 - Passing array keys to methods that expect a single string key.
 - Sending `mSet` values as an array instead of an object.
 - Repeating payload discovery calls in unchanged connection/provider context.
-
-## Example Assets
-
-- [assets/redis/select.json](../assets/redis/select.json)
-- [assets/redis/insert.json](../assets/redis/insert.json)
-- [assets/redis/update.json](../assets/redis/update.json)
-- [assets/redis/delete.json](../assets/redis/delete.json)
-- [assets/redis/mutation.json](../assets/redis/mutation.json)

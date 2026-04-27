@@ -1,13 +1,13 @@
 ---
 name: data-store-graphql
-description: 'Use when working with GraphQL APIs to run queries, send mutations, and inspect GraphQL responses.'
+description: 'ALWAYS load this skill before any GraphQL operation — even if you are familiar with the GraphQL query language. Skipping it is a leading cause of failures from wrong tool routing, missing variables fields, and treating GraphQL like a REST endpoint. Use when working with GraphQL APIs to run queries, send mutations, or inspect responses. This skill mandates: (1) reading the payload reference before constructing any operation so the query string, variables, and headers are shaped correctly, (2) routing all read/list/search GraphQL queries to the select tool — not mutation, (3) routing all GraphQL mutations to the mutation tool — not insert/update/delete unless they are aliases, and (4) never using REST payload guidance for a GraphQL endpoint even if it is served over HTTP. GraphQL is not REST — REST patterns produce invalid requests. Co-load with domain skills — they provide context; this skill governs operation authoring and routing. They are complementary, not interchangeable.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 # GraphQL Servers
 
 Use this skill when the user needs to interact with a GraphQL API using queries or mutations. GraphQL payloads center on operation text and optional variables, with routing based on read versus mutation intent. This skill helps map those operations to the appropriate data-store tools while keeping request shape provider-correct.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 ## When To Use
 

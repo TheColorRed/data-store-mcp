@@ -76,7 +76,15 @@ export class SQLite<P extends DatabasePayloadBase> extends SqlDataSource<P> {
   async select(): Promise<any> {
     if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    return this.all(this.payload.sql, this.payload.params);
+    const baseSql = this.payload.sql.trimEnd().replace(/;$/, '');
+    if (this.shouldPaginate(baseSql)) {
+      const { pagedSql, countSql, currentPage, pageSize } = this.buildPaginationSql(baseSql);
+      const rows = this.all(pagedSql, this.payload.params);
+      const countRows = this.all(countSql, this.payload.params);
+      const totalRows = Number((countRows as any[])[0]?.total ?? 0);
+      return this.assemblePaginationResult(rows, totalRows, currentPage, pageSize);
+    }
+    return this.all(baseSql, this.payload.params);
   }
 
   /**
@@ -115,6 +123,26 @@ export class SQLite<P extends DatabasePayloadBase> extends SqlDataSource<P> {
    */
   async showSchema(): Promise<any> {
     const tableName = this.payload.tableName ?? '';
+    const listTables = this.payload.listTables;
+    const listViews = this.payload.listViews;
+    const listTriggers = this.payload.listTriggers;
+
+    if (listTables || listViews || listTriggers) {
+      return {
+        ...(listTables
+          ? { tables: this.all(`SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`) }
+          : {}),
+        ...(listViews ? { views: this.all(`SELECT name, sql FROM sqlite_master WHERE type='view'`) } : {}),
+        ...(listTriggers
+          ? {
+              triggers: this.all(
+                `SELECT name, tbl_name AS table_name, sql FROM sqlite_master WHERE type='trigger' AND name NOT LIKE 'sqlite_%'`,
+              ),
+            }
+          : {}),
+      };
+    }
+
     if (tableName)
       return this.all(`SELECT * FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name=?`, [
         tableName,

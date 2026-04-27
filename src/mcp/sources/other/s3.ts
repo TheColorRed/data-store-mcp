@@ -23,9 +23,11 @@ export interface S3Payload {
   method: 'GET' | 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
   bucket?: string;
   key?: string;
+  delimiter?: string;
   sourceType?: 'path' | 'raw';
   sourceValue?: string;
   maxResults?: number;
+  hideBody?: boolean;
 }
 
 export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
@@ -92,6 +94,8 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
           'The value to be inserted or updated. If `sourceType` is `path`, this should be a file path. If `sourceType` is raw, this is the raw data.',
         ),
       maxResults: z.number().min(1).default(100).describe('The maximum number of results to return.'),
+      delimiter: z.string().optional().describe('An optional delimiter to use when listing objects with SELECT.'),
+      hideBody: z.boolean().optional().describe('Whether to hide the body of the response. Defaults to false.'),
     };
   }
   connect(): Promise<void> {
@@ -113,8 +117,9 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
 
     const signedUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
     const url = new URL(signedUrl);
-    const result = await this.client.send(command);
-    const body = await result?.Body?.transformToString();
+    const result = await this.client?.send(command);
+    const hideBody = typeof payloadObject.hideBody === 'boolean' ? payloadObject.hideBody : false;
+    const body = !hideBody ? await result?.Body?.transformToString() : undefined;
 
     return {
       bucket,
@@ -122,7 +127,7 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
       signedUrl,
       url: `${url.origin}${url.pathname}`,
       path: url.pathname,
-      body,
+      ...(hideBody ? {} : { body }),
       contentType: result?.ContentType,
       acceptRanges: result?.AcceptRanges,
       checksumSHA1: result?.ChecksumSHA1,
@@ -211,25 +216,26 @@ export class S3Source<P extends S3Payload> extends UnknownDataSource<P> {
   }
   async showSchema(): Promise<object> {
     if (!this.client) await this.connect();
+    if (!this.client) throw new Error('S3 client not initialized');
     const bucket = this.#getBucket();
     const payloadObject = {
       ...this.payload,
       bucket,
     };
 
-    const result =
-      this.client?.send(
-        new ListObjectsV2Command({
-          Bucket: bucket,
-          Prefix: payloadObject.key ?? '',
-          MaxKeys: payloadObject.maxResults ?? 100,
-          // Delimiter: '/',
-        }),
-      ) ?? {};
+    const result = await this.client?.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        MaxKeys: payloadObject.maxResults ?? 100,
+        ...(payloadObject.key ? { Prefix: payloadObject.key } : {}),
+        ...(payloadObject.delimiter ? { Delimiter: payloadObject.delimiter } : {}),
+      }),
+    );
 
     return {
       bucket,
       prefix: payloadObject.key ?? '',
+      delimiter: payloadObject.delimiter ?? '',
       ...result,
     };
   }

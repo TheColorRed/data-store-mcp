@@ -1,6 +1,6 @@
 ---
 name: data-store-operations
-description: 'Use when you need workflow guidance for tool selection, schema-first execution, troubleshooting, error recovery, provider capability mapping, or output formatting across any data store type.'
+description: 'ALWAYS load this skill when tool routing is ambiguous, a request fails, or you are unsure which provider tool to call — regardless of which data source is involved. Skipping it is a leading cause of repeated failed tool calls, unnecessary schema fetches, and inconsistent error responses. Use for cross-provider operational workflow guidance covering SQL, document, key-value, REST, GraphQL, FTP, and object storage. This skill mandates: (1) reading the tool-routing reference before making any tool call when the correct tool is not obvious, (2) following the schema-first execution flow when payload shape or table/collection details are uncertain, (3) applying the deterministic error recovery steps after any tool failure before retrying, and (4) formatting all results and errors to the response standards defined in this skill. This is a meta-skill — layer it on top of provider-specific skills. Layer this alongside provider skills — they govern payloads; this skill governs routing and recovery. Both are required.'
 ---
 
 # Data Store Operations

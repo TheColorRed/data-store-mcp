@@ -22,6 +22,7 @@ export type DataSourceTypes =
   // Other
   | 'azure-blob'
   | 's3';
+/** HTTP methods supported by HTTP-based data sources. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 /**
  * Generic connection configuration passed to data source implementations.
@@ -71,6 +72,22 @@ export interface DatabasePayloadBase {
   params?: Record<string, any>;
   /** Optional table name for the query */
   tableName?: string;
+  /** Optional flag to list all tables */
+  listTables?: boolean;
+  /** Optional flag to list all stored procedures */
+  listProcedures?: boolean;
+  /** Optional flag to list all stored functions */
+  listFunctions?: boolean;
+  /** Optional flag to list all views */
+  listViews?: boolean;
+  /** Optional flag to list all triggers */
+  listTriggers?: boolean;
+  /** Optional query timeout in milliseconds */
+  timeout?: number;
+  /** Optional page number (1-based). Use together with limit as the page size. When set, select returns rows, page, totalPages, and totalRows. */
+  page?: number;
+  /** Optional page size for pagination. Defaults to 20 if page is set without limit. */
+  pageSize?: number;
 }
 /** The base payload for HTTP actions. */
 export interface HttpPayloadBase {
@@ -85,6 +102,9 @@ export interface HttpPayloadBase {
 }
 /** Error thrown when a requested action is not supported by a data source. */
 export class UnsupportedActionError extends Error {
+  /**
+   * @param action The name of the unsupported action that was requested.
+   */
   constructor(action: string) {
     super(`Unsupported action: ${action}`);
     this.name = 'UnsupportedActionError';
@@ -120,7 +140,12 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   // Abstract methods for schema operations
   abstract showSchema(): Promise<ActionReturnType>;
 
+  /** The resolved payload object extracted from the incoming request. */
   readonly payload: P;
+  /**
+   * @param connectionConfig The connection configuration for this data source instance.
+   * @param request The incoming action request containing the connection id and payload.
+   */
   constructor(
     readonly connectionConfig: DataSourceConfig<Cfg>,
     readonly request: ActionRequest<P>,
@@ -155,9 +180,9 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   }
   /**
    * Helper to attempt a graceful close and fall back after a timeout.
-   * - closeFn: function that performs the graceful close (may return a Promise)
-   * - fallbackFn: best-effort function to force-close resources if closeFn stalls
-   * - timeoutMs: how long to wait before running fallbackFn
+   * @param closeFn Function that performs the graceful close (may return a Promise).
+   * @param fallbackFn Best-effort function to force-close resources if closeFn stalls.
+   * @param timeoutMs How long to wait before running fallbackFn.
    *
    * This method unrefs the internal timer so it won't keep Node alive.
    */
@@ -220,6 +245,13 @@ export abstract class DataSource<P = unknown, Cfg = unknown> {
   }
 }
 
+/**
+ * Abstract base class for SQL database data sources.
+ *
+ * Extends `DataSource` with SQL-specific helpers for query parsing, pagination,
+ * and schema introspection. P must extend `DatabasePayloadBase`; Cfg is the
+ * provider-specific connection options type.
+ */
 export abstract class SqlDataSource<
   P extends DatabasePayloadBase = DatabasePayloadBase,
   Cfg = unknown,
@@ -232,9 +264,9 @@ export abstract class SqlDataSource<
   abstract showSchema(): Promise<ActionReturnType>;
   /**
    * Parse the given SQL query and return its AST (Abstract Syntax Tree).
-   * @parm sql The SQL query to parse.
+   * @param sql The SQL query to parse.
    */
-  #parseQuery(sql: string) {
+  protected parseQuery(sql: string) {
     let { Parser } = nodeSqlParser;
     const parser = new Parser();
     const opt = { database: 'MySQL' }; // Default to MySQL/MariaDB syntax
@@ -243,6 +275,79 @@ export abstract class SqlDataSource<
     if (this.connectionConfig.type === 'mssql') opt.database = 'TransactSQL';
     return parser.astify(sql, opt);
   }
+  /**
+   * Returns true when the SQL has no WHERE clause and no LIMIT, meaning the
+   * agent provided no filtering and the result set should be paginated automatically.
+   * @param sql The SQL query to check.
+   */
+  protected shouldPaginate(sql: string): boolean {
+    try {
+      const ast = this.parseQuery(sql);
+      const node = Array.isArray(ast) ? ast[0] : ast;
+      return !(node as any)?.where && !(node as any)?.limit;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Assemble a schema result object from parallel query results.
+   * @param results The array of query results, where some may be false if the query was not run.
+   * @param keys An ordered list of `[flag, label]` pairs matching the result array.
+   * @param extractRows A function that converts a single driver result to a plain array of rows.
+   */
+  protected buildSchemaResult(
+    results: (any | false)[],
+    keys: [boolean | undefined, string][],
+    extractRows: (res: any) => any[],
+  ): Record<string, any[]> {
+    return Object.fromEntries(
+      keys
+        .map(([flag, label], i) => (flag && typeof results[i] !== 'boolean' ? [label, extractRows(results[i])] : null))
+        .filter((e): e is [string, any[]] => e !== null),
+    );
+  }
+  /**
+   * Compute the paginated and count SQL strings plus resolved page/size values
+   * from the current payload. Call after confirming shouldPaginate is true.
+   * @param baseSql The original SQL string without a trailing semicolon.
+   */
+  protected buildPaginationSql(baseSql: string): {
+    pagedSql: string;
+    countSql: string;
+    currentPage: number;
+    pageSize: number;
+  } {
+    const { pageSize, page } = this.payload as DatabasePayloadBase;
+    const size = typeof pageSize === 'number' ? Math.max(1, Math.trunc(Math.abs(pageSize))) : 20;
+    const currentPage = typeof page === 'number' ? Math.max(1, Math.trunc(Math.abs(page))) : 1;
+    const rowOffset = (currentPage - 1) * size;
+    return {
+      pagedSql: `${baseSql} LIMIT ${size} OFFSET ${rowOffset}`,
+      countSql: `SELECT COUNT(*) AS total FROM (${baseSql}) AS _pagination_count`,
+      currentPage,
+      pageSize: size,
+    };
+  }
+  /**
+   * Assemble the standard pagination response envelope.
+   * @param rows The rows returned by the paged query.
+   * @param totalRows The total number of rows returned by the count query.
+   * @param currentPage The current page number.
+   * @param pageSize The number of rows per page.
+   */
+  protected assemblePaginationResult(
+    rows: any[],
+    totalRows: number,
+    currentPage: number,
+    pageSize: number,
+  ): { rows: any[]; page: number; totalPages: number; totalRows: number } {
+    return { rows, page: currentPage, totalPages: Math.ceil(totalRows / pageSize), totalRows };
+  }
+  /**
+   * Returns the Zod schema description for all standard SQL payload fields.
+   * Use this inside `describePayload()` implementations to expose the full
+   * set of supported SQL payload options to the MCP tool layer.
+   */
   protected sqlPayloadInformation(): PayloadDescription<DatabasePayloadBase> {
     return {
       sql: z.string().describe('Required SQL query to execute.'),
@@ -263,14 +368,50 @@ This should be an array or object, depending on the database driver.
         .describe(
           'Optional table name for the SQL query. This is used for better schema inference and is not required for query execution.',
         ),
+      listTables: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional flag to list all tables in the database. If set to true, the tool will return a list of all tables without column details. This is used for better schema inference and is not required for query execution.',
+        ),
+      listProcedures: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional flag to list all stored procedures in the database. If set to true, the tool will return a list of all stored procedures without parameter details. This is used for better schema inference and is not required for query execution.',
+        ),
+      listFunctions: z
+        .boolean()
+        .optional()
+        .describe(
+          'Optional flag to list all stored functions in the database. If set to true, the tool will return a list of all stored functions without parameter details. This is used for better schema inference and is not required for query execution.',
+        ),
+      listViews: z.boolean().optional().describe('Optional flag to list all views in the database.'),
+      listTriggers: z.boolean().optional().describe('Optional flag to list all triggers in the database.'),
+      timeout: z
+        .number()
+        .optional()
+        .describe('Optional query timeout in milliseconds. Defaults to the driver default if not set.'),
+      page: z
+        .number()
+        .optional()
+        .describe(
+          'Optional 1-based page number. Use together with pageSize. When set, select returns { rows, page, totalPages, totalRows } instead of a plain array.',
+        ),
+      pageSize: z
+        .number()
+        .optional()
+        .describe(
+          'Optional page size for pagination. Defaults to 20 if page is set without pageSize. Use together with page. When set, select returns { rows, page, totalPages, totalRows } instead of a plain array.',
+        ),
     };
   }
   /**
    * Check if the given SQL query is a mutation (INSERT, UPDATE, DELETE).
-   * @parm sql The SQL query to check.
+   * @param sql The SQL query to check.
    */
   isMutation() {
-    const ast = this.#parseQuery(this.request.payload?.sql ?? '');
+    const ast = this.parseQuery(this.request.payload?.sql ?? '');
     if (Array.isArray(ast)) {
       // return false if the ast type has a non-select node
       return ast.some(node => node.type === 'insert' || node.type === 'update' || node.type === 'delete');
@@ -279,43 +420,43 @@ This should be an array or object, depending on the database driver.
   }
   /**
    * Check if the given SQL query is a SELECT statement.
-   * @parm sql The SQL query to check.
+   * @param sql The SQL query to check.
    */
   isSelect() {
     const payload = this.getPayloadObject(this.request);
-    const ast = this.#parseQuery(payload?.sql ?? '');
+    const ast = this.parseQuery(payload?.sql ?? '');
     return Array.isArray(ast) ? ast.every(node => node.type === 'select') : ast.type === 'select';
   }
   /**
    * Check if the given SQL query is an INSERT statement.
-   * @parm sql The SQL query to check.
+   * @param sql The SQL query to check.
    */
   isInsert() {
     const payload = this.getPayloadObject(this.request);
-    const ast = this.#parseQuery(payload?.sql ?? '');
+    const ast = this.parseQuery(payload?.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'insert') : ast.type === 'insert';
   }
   /**
    * Check if the given SQL query is an UPDATE statement.
-   * @parm sql The SQL query to check.
+   * @param sql The SQL query to check.
    */
   isUpdate() {
     const payload = this.getPayloadObject(this.request);
-    const ast = this.#parseQuery(payload?.sql ?? '');
+    const ast = this.parseQuery(payload?.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'update') : ast.type === 'update';
   }
   /**
    * Check if the given SQL query is a DELETE statement.
-   * @parm sql The SQL query to check.
+   * @param sql The SQL query to check.
    */
   isDelete() {
     const payload = this.getPayloadObject(this.request);
-    const ast = this.#parseQuery(payload?.sql ?? '');
+    const ast = this.parseQuery(payload?.sql ?? '');
     return Array.isArray(ast) ? ast.some(node => node.type === 'delete') : ast.type === 'delete';
   }
   /**
    * Get the types of SQL queries present in the given SQL string.
-   * @parm sql The SQL query to analyze.
+   * @param sql The SQL query to analyze.
    */
   queryTypes() {
     const types: string[] = [];
@@ -327,6 +468,11 @@ This should be an array or object, depending on the database driver.
   }
 }
 
+/**
+ * Abstract base class for NoSQL document data sources (e.g. MongoDB).
+ *
+ * P is the payload type; Cfg is the provider-specific connection options type.
+ */
 export abstract class NoSqlDataSource<P = unknown, Cfg = unknown> extends DataSource<P, Cfg> {
   abstract select(): Promise<ActionReturnType>;
   abstract mutation(): Promise<ActionReturnType>;
@@ -336,6 +482,13 @@ export abstract class NoSqlDataSource<P = unknown, Cfg = unknown> extends DataSo
   abstract showSchema(): Promise<ActionReturnType>;
 }
 
+/**
+ * Abstract base class for HTTP-based data sources (REST, GraphQL, FTP, etc.).
+ *
+ * P defaults to `HttpPayloadBase`; Cfg is the provider-specific connection
+ * options type. All query-type guards return `true` since HTTP sources are
+ * not SQL and every operation is permitted by default.
+ */
 export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends DataSource<P, Cfg> {
   abstract select(): Promise<ActionReturnType>;
   abstract mutation(): Promise<ActionReturnType>;
@@ -344,6 +497,13 @@ export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends
   abstract delete(): Promise<ActionReturnType>;
   abstract showSchema(): Promise<ActionReturnType>;
 
+  /**
+   * Build a `PayloadDescription` for HTTP-based payloads by merging the
+   * standard HTTP fields (`endpoint`, `method`, `headers`, `body`) with
+   * provider-specific body fields.
+   * @param types A Zod schema or a plain object of Zod field definitions
+   *   describing the provider-specific body shape.
+   */
   protected combinePayload(types: { [key: string]: ZodTypeAny } | ZodTypeAny) {
     const objectSchema =
       typeof types === 'object' && !('parse' in types)
@@ -419,6 +579,11 @@ export abstract class HttpDataSource<P = HttpPayloadBase, Cfg = unknown> extends
   }
 }
 
+/**
+ * Abstract base class for data sources whose query semantics are unknown
+ * (e.g. key-value stores, object storage). All query-type guards return
+ * `false` since the source does not support typed SQL operations.
+ */
 export abstract class UnknownDataSource<Payload = unknown> extends DataSource<Payload> {
   abstract select(): Promise<ActionReturnType>;
   abstract mutation(): Promise<ActionReturnType>;

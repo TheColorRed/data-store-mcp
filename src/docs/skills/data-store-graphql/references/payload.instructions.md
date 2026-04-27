@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [select.json](../assets/graphql/select.json) to understand the expected payload shape for GraphQL SELECT operations, including required fields like `query` and optional fields like `variables` and `headers`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [mutation.json](../assets/graphql/mutation.json) to understand the expected payload shape for GraphQL MUTATION operations, including required fields like `query` and optional fields like `variables` and `headers`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/graphql/insert.json) to understand the expected payload shape for GraphQL INSERT operations, including required fields like `query` and optional fields like `variables` and `headers`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/graphql/update.json) to understand the expected payload shape for GraphQL UPDATE operations, including required fields like `query` and optional fields like `variables` and `headers`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/graphql/delete.json) to understand the expected payload shape for GraphQL DELETE operations, including required fields like `query` and optional fields like `variables` and `headers`. This is crucial for properly formatting requests and avoiding validation errors.
+
 # GraphQL Payload
 
 Use this reference when constructing GraphQL requests through the data-store tools. GraphQL payloads include operation text and optional variables and headers, and should be reused across repeated calls in the same endpoint context. This document focuses on shape correctness and common pitfalls.
@@ -26,13 +36,3 @@ Most GraphQL request failures come from intent mismatches or missing runtime inp
 - Sending mutation operations through `select`.
 - Omitting variables referenced by the operation text.
 - Repeating payload discovery for unchanged endpoint and operation pattern.
-
-## Example Assets
-
-Use these assets as canonical payload templates for GraphQL operations. They provide concrete patterns for query and mutation flows without embedding redundant JSON in this page. Start with the nearest operation and customize query text, variables, and headers.
-
-- [assets/graphql/select.json](../assets/graphql/select.json)
-- [assets/graphql/mutation.json](../assets/graphql/mutation.json)
-- [assets/graphql/insert.json](../assets/graphql/insert.json)
-- [assets/graphql/update.json](../assets/graphql/update.json)
-- [assets/graphql/delete.json](../assets/graphql/delete.json)

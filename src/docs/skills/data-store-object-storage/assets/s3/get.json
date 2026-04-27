@@ -1,5 +1,6 @@
 {
   "method": "GET",
   "bucket": "my-bucket",
-  "key": "folder/file.txt"
+  "key": "folder/file.txt",
+  "hideBody": true
 }

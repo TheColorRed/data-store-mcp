@@ -12,6 +12,7 @@ export interface MongoPayload {
   tableName: string;
   filter: { [key: string]: any };
   value?: { [key: string]: any } | { [key: string]: any }[];
+  listTables?: boolean;
 }
 
 /**
@@ -36,6 +37,10 @@ export class MongoDB<P extends MongoPayload> extends NoSqlDataSource<P> {
       tableName: z.string().describe('The name of the collection to operate on.'),
       filter: z.record(z.any()).describe('The filter to apply to the collection.'),
       value: z.record(z.any()).optional().describe('The value to insert or update in the collection.'),
+      listTables: z
+        .boolean()
+        .optional()
+        .describe('If set to true, the tool will return a list of all tables in the database without column details.'),
     };
   }
   async connect(): Promise<void> {
@@ -69,6 +74,13 @@ export class MongoDB<P extends MongoPayload> extends NoSqlDataSource<P> {
    */
   async showSchema(): Promise<object> {
     const table = this.payload?.tableName ?? '';
+    const listTables = this.payload?.listTables;
+
+    if (listTables) {
+      const collections = (await this.db?.listCollections().toArray()) ?? [];
+      return collections.map(collection => collection.name);
+    }
+
     if (table) {
       return {
         tableName: table,
@@ -209,7 +221,7 @@ export class MongoDB<P extends MongoPayload> extends NoSqlDataSource<P> {
     await this.safeClose(
       async () => await this.client!.close(),
       async () => await (this.client as any).close(true),
-      2000
+      2000,
     );
     this.client = undefined;
     this.db = undefined;

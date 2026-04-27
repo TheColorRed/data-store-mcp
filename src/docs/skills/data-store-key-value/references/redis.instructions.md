@@ -1,3 +1,5 @@
+**ALWAYS** #tool:read/readFile [Redis payload reference](./payload-redis.instructions.md) to understand the expected payload shape for Redis operations, including required fields like `method` and `key`, and optional fields like `hField` and `hValue`. This is crucial for properly formatting requests and avoiding validation errors when working with Redis through the Key-Value Data Store skill.
+
 # Redis
 
 Redis is a popular in-memory key-value data store that supports various data structures such as strings, hashes, lists, sets, and sorted sets. It is commonly used for caching, session management, real-time analytics, and as a message broker.
@@ -23,13 +25,3 @@ Common patterns provide quick mappings from user intent to valid Redis payload s
 - Single-key write: `method: "in"`, `key: "some:key"`, `value: "..."`
 - Hash write: `method: "hIn"`, `key: "hash:key"`, `hValue: "field"`, `value: "..."`
 - Key delete: `method: "del"`, `key: "some:key"`
-
-## Example Assets
-
-Use these assets as canonical request templates for Redis operations. They avoid duplicated inline payload examples and remain easier to maintain as tooling evolves. Copy the closest asset and modify only key names, fields, and values.
-
-- [assets/redis/select.json](../assets/redis/select.json)
-- [assets/redis/insert.json](../assets/redis/insert.json)
-- [assets/redis/update.json](../assets/redis/update.json)
-- [assets/redis/delete.json](../assets/redis/delete.json)
-- [assets/redis/mutation.json](../assets/redis/mutation.json)

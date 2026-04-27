@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [get.json](../assets/azure-blob/get.json) to understand the expected payload shape for Azure Blob Storage GET operations, including required fields like `container` and `blob`, and optional fields like `includeMetadata`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [select.json](../assets/azure-blob/select.json) to understand the expected payload shape for Azure Blob Storage SELECT operations, including required fields like `container` and optional fields like `blob` and `maxResults`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/azure-blob/insert.json) to understand the expected payload shape for Azure Blob Storage INSERT operations, including required fields like `container`, `blob`, `sourceType`, and `sourceValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/azure-blob/update.json) to understand the expected payload shape for Azure Blob Storage UPDATE operations, including required fields like `container`, `blob`, `sourceType`, and `sourceValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/azure-blob/delete.json) to understand the expected payload shape for Azure Blob Storage DELETE operations, including required fields like `container` and `blob`. This is crucial for properly formatting requests and avoiding validation errors.
+
 # Azure Blob Storage Payload Instructions
 
 Use these instructions when the user wants to work with Azure Blob Storage containers. Azure Blob Storage payloads follow the same general object storage model as S3, but they require Azure-specific field names. This reference helps you map the shared method set to the Azure Blob Storage semantics.

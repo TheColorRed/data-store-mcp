@@ -1,0 +1,7 @@
+{
+  "listTables": true,
+  "listProcedures": true,
+  "listFunctions": true,
+  "listViews": true,
+  "listTriggers": true
+}

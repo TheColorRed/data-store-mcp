@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [select.json](../assets/mongodb/select.json) to understand the expected payload shape for MongoDB SELECT operations, including required fields like `tableName` and `filter`, and optional fields. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/mongodb/insert.json) to understand the expected payload shape for MongoDB INSERT operations, including required fields like `tableName` and `value`, and optional fields. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/mongodb/update.json) to understand the expected payload shape for MongoDB UPDATE operations, including required fields like `tableName`, `filter`, and `value`, and optional fields. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/mongodb/delete.json) to understand the expected payload shape for MongoDB DELETE operations, including required fields like `tableName` and `filter`, and optional fields. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [mutation.json](../assets/mongodb/mutation.json) to understand the expected payload shape for MongoDB operations when using the generic mutation tool, including how to specify the `method` field along with required and optional fields for each operation type. This is crucial for properly formatting requests and avoiding validation errors when not using specific CRUD tools.
+
 # MongoDB Payload
 
 MongoDB operations use a method-driven payload that maps directly to common CRUD actions. This document describes the expected fields, when they are required, and how each method should be used. Use this reference whenever payload shape is unknown or a validation error indicates stale assumptions.
@@ -36,13 +46,3 @@ Most MongoDB payload issues come from field omission or mismatched tool intent. 
 - Omitting `filter` for `UPDATE` or `DELETE`, which can cause broad unintended mutations.
 - Sending SQL-style table assumptions instead of MongoDB collection names in `tableName`.
 - Using `mutation` when standard `select`, `insert`, `update`, or `delete` tools already match the intent.
-
-## Example Assets
-
-Use the assets below as canonical payload templates for MongoDB operations. They provide concrete examples without duplicating long payload blocks in this reference. Start with the nearest operation and adapt only the collection and data-specific fields.
-
-- [assets/mongodb/select.json](../assets/mongodb/select.json)
-- [assets/mongodb/insert.json](../assets/mongodb/insert.json)
-- [assets/mongodb/update.json](../assets/mongodb/update.json)
-- [assets/mongodb/delete.json](../assets/mongodb/delete.json)
-- [assets/mongodb/mutation.json](../assets/mongodb/mutation.json)

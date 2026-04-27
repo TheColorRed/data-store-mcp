@@ -1,13 +1,15 @@
 ---
 name: data-store-key-value
-description: 'Use when working with key-value data sources, currently Redis, to query, write, or delete data.'
+description: 'ALWAYS load this skill before any Redis or key-value operation — even for simple get or set commands. Skipping it is a leading cause of failures from wrong method names, missing key fields, and confusing the schema tool output with a relational schema. Use when working with key-value data sources such as Redis. Applies to GET, SET, DEL, KEYS, EXISTS, and hash variant commands. This skill mandates: (1) reading the Redis payload reference before constructing any request so the method, key, and optional value fields are set correctly, (2) using select for read operations like GET, KEYS, and EXISTS — not mutation, (3) using insert for initial key creation and update when overwriting an existing key, and (4) treating schema tool output as a key summary, not a relational table list — do not apply SQL schema interpretation to key-value results. SQL and document patterns don't apply. Co-load with domain skills — they provide context; this skill governs payload correctness. They are complementary, not interchangeable.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
+
+**ALWAYS** #tool:read/readFile [redis instructions](./references/redis.instructions.md) when working with a Redis data store.
 
 # Key-Value Data Store
 
 Use this skill when the user needs to work with key-value data sources such as Redis. Key-value stores are command- and key-centric, so payload construction differs from SQL and document data sources. This skill provides routing guidance and payload references for read, write, update, and delete behaviors.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 ## When To Use
 
@@ -37,33 +39,3 @@ Redis is the current documented provider for this skill and uses command-like me
 - Use the #tool:data-store/update tool with Redis method `SET` when the target key already exists.
 - Use the #tool:data-store/delete tool with Redis method `DEL`.
 - Use the #tool:data-store/mutation tool with Redis methods `SET` or `DEL`.
-
-## Key-Value Payloads
-
-Payload shape is provider-specific and currently documented for Redis. Read the payload reference before issuing commands when method/field requirements are unknown or stale. Reuse known payload context for repeated operations with unchanged connection/provider context.
-
-**ALWAYS** read the payload instructions document for the specific key-value store before using the Key-Value skill to understand how to properly format the payload for that store's operations, including the required and optional fields for different operation types.
-
-Redis currently uses a method-driven payload that includes a command-style `method`, a `key`, and an optional `value` for write operations. Refer to the Redis payload documentation for the supported fields and shapes.
-
-- [Redis Payload](references/payload-redis.instructions.md)
-
-## References
-
-Use the provider reference for command-level details and examples. These references are the authoritative source for method names and required field combinations.
-Consult this section whenever there is uncertainty about command semantics or field naming. It is especially useful when translating user intent into provider-specific method values. Keeping method details in one place helps reduce contradictory guidance across skills.
-
-**ALWAYS** refer to the specific data store instructions for detailed guidance on payload structure, supported operations, and examples.
-
-- [Redis Instructions](references/redis.instructions.md)
-
-## Example Assets
-
-Use these Redis payload assets as templates for common key-value operations.
-These assets replace long inline JSON snippets and keep examples synchronized with runtime expectations. They are easier to update when provider behavior changes and simpler to validate during reviews. Start from the closest operation file, then adjust only keys and values for the task.
-
-- [Redis SELECT payload](assets/redis/select.json)
-- [Redis INSERT payload](assets/redis/insert.json)
-- [Redis UPDATE payload](assets/redis/update.json)
-- [Redis DELETE payload](assets/redis/delete.json)
-- [Redis mutation payload](assets/redis/mutation.json)

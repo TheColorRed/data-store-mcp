@@ -86,3 +86,16 @@
   - Updated the skills with better information.
   - Simplified the payload tool response.
   - Updated sqlite schema query.
+
+## 1.9.x - 2026-04-22
+
+- Updated
+  - Updated the schema tool to support an optional `listTables`, `listProcedures`, `listFunctions`, `listViews`, `listTriggers` parameter that allows returning a list of tables, procedures, functions, views, or triggers without column details. This provides a lightweight way for agents to discover available tables, procedures, functions, views, or triggers before querying for specific schema information.
+  - Updated the connections tool to support an optional `typeFilter` parameter that allows filtering connections by type (e.g., "mysql", "rest", "ftp"). This helps agents narrow down relevant connections and reduces noise when multiple connection types are present.
+  - Simplified the response from the connections tool to only return: id, type, description, metadata. Options are only included for http connections (rest and graphql). This hides usernames, passwords, and other sensitive information from the agent while still providing the necessary information for the agent to make informed decisions about which connection to use.
+  - SQL Data Stores
+    - If an agent supplies a select with no filtering or limiting conditions, the select tool will now paginate the results by default with a page size of 20. This prevents accidentally returning an overwhelming number of rows and allows agents to retrieve results in manageable chunks.
+  - AWS S3
+    - Fixed an issue with s3 not `await`ing a client call which caused it to return an empty response instead of the expected list of objects.
+    - Updated the s3 tool to support an optional `delimiter` parameter that allows specifying a delimiter when listing objects with the `SELECT` method. This provides more flexibility in how objects are listed and can help agents better navigate complex bucket structures.
+    - Added `hideBody` parameter to s3 `GET` method that allows hiding the body of the response. This can be useful for agents to make decisions based on the metadata of the objects without needing to retrieve the full object data, which can save tokens and reduce unnecessary data retrieval.

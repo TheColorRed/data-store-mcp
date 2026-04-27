@@ -14,6 +14,7 @@ Follow these phased rules to prevent redundant searches and redundant discovery 
 **Phase 1: Discovery**
 
 - #tool:data-store/connections - Run when `connectionId` is unknown or stale. At the start of a new user request, do not assume a remembered `connectionId` unless the current request explicitly establishes it. Prefer one call per target context.
+  - If you know the connection type, such as mysql, postgres, etc., use the `typeFilter` parameter to limit results to relevant connections.
 - #tool:data-store/schema - Run only when schema context is unknown or stale. Never call more than once with the same `connectionId` and target structure in a single turn. Do not use repeated `schema` calls as a substitute for reasoning or query drafting.
 - #tool:data-store/payload - Run only when payload context is unknown or stale. Prefer one call per provider and operation pattern.
 
@@ -34,6 +35,24 @@ Follow these phased rules to prevent redundant searches and redundant discovery 
 - For a follow-up read in the same database or provider context, prefer exactly one execution call using #tool:data-store/select
 - Only fall back to `schema` or `payload` again when the execution tool reports an actual mismatch or missing-field error.
 
+## Loop Prevention Rules
+
+- Never call the same discovery tool (`connections`, `schema`, or `payload`) more than once with identical inputs in the same turn.
+- After any successful discovery call, the next call should be an execution tool unless there is a concrete stale-context signal.
+- If you used the wrong execution tool, switch directly to the correct execution tool using the same known `connectionId` and context.
+- If you already have a successful `payload` result for a given `connectionId`, treat payload shape as known for the rest of the turn.
+- If execution fails and the error does not indicate stale connection/schema/payload assumptions, do not restart discovery; explain the blocker or ask a clarifying question.
+
+## Validation Error Recovery (Required)
+
+- Treat these as request-shape errors, not stale context: `must NOT have additional properties`, `must have required property`, `invalid type`.
+- After a request-shape error, do not run `connections`, `schema`, or `payload` again if they already succeeded in the same turn.
+- Correct the arguments and retry the same target tool once.
+- If the second attempt fails with the same validation category, stop retrying and ask the user a clarifying question.
+- Canonical shapes to avoid formatting mistakes:
+  - `schema` with one table: `{"connectionId":"...","payload":{"tableName":"recipes"}}`
+  - `select` read query: `{"connectionId":"...","payload":{"sql":"SELECT ...","params":[...]}}`
+
 ## Stale Context Definition
 
 Treat context as stale when any of the following happens:
@@ -50,3 +69,23 @@ The payload for making requests to the data source is a crucial part of the inte
 ## Ask Questions
 
 If the user request is ambiguous or you are not sure what the user is asking, get feedback from the user using the #tool:vscode/askQuestions tool instead of making assumptions.
+
+## Supported connection types
+
+- Database connections:
+  - `mysql` - MySQL databases
+  - `mariadb` - MariaDB databases (uses MySQL connector guidance)
+  - `sqlite` - SQLite databases
+  - `postgres` - PostgreSQL databases
+  - `mssql` - Microsoft SQL Server databases
+- Document store connections:
+  - `mongodb` - MongoDB databases
+- Key-value store connections:
+  - `redis` - Redis databases
+- API connections:
+  - `rest` - REST HTTP APIs
+  - `graphql` - GraphQL APIs
+- File storage connections:
+  - `ftp` - FTP file servers
+  - `s3` - Amazon S3 object storage
+  - `azure-blob` - Azure Blob object storage

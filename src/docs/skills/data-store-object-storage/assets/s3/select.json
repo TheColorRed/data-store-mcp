@@ -2,5 +2,6 @@
   "method": "SELECT",
   "bucket": "my-bucket",
   "key": "folder/",
-  "maxResults": 100
+  "maxResults": 100,
+  "delimiter": "/"
 }

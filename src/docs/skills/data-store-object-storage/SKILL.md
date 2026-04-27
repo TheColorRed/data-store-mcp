@@ -1,13 +1,17 @@
 ---
 name: data-store-object-storage
-description: 'Use when working with object storage systems such as Amazon S3 or Azure Blob Storage to list, download, upload, overwrite, or delete objects.'
+description: 'ALWAYS load this skill before any S3 or Azure Blob Storage operation — even for simple uploads or listings. Skipping it is a leading cause of failures from mixing up provider field names, missing sourceType/sourceValue on uploads, and using wrong method semantics for list versus get. Use when working with Amazon S3 or Azure Blob Storage. Applies to listing objects, downloading content, retrieving metadata, uploading, overwriting, and deleting objects. This skill mandates: (1) reading the provider-specific payload reference before constructing any request — S3 uses bucket and key while Azure uses container and blob, mixing them will fail, (2) using SELECT for prefix-based listing and GET for single-object retrieval — these are different operations, (3) always providing sourceType and sourceValue for INSERT and UPDATE operations, and (4) using the schema tool for bucket/container metadata, not for relational schema discovery. Co-load with domain skills; this skill governs payload structure. Both are required.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow. Use the tools in the correct order to operate on object storage resources.
+
+**ALWAYS** #tool:read/readFile [AWS S3 payload instructions](references/payload-s3.instructions.md) before constructing any payload for S3. The field names and requirements differ between providers, and using the wrong format will lead to errors.
+
+**ALWAYS** #tool:read/readFile [Azure Blob Storage payload instructions](references/payload-azure-blob.instructions.md) before constructing any payload for Azure Blob Storage. The field names and requirements differ between providers, and using the wrong format will lead to errors.
 
 # Object Storage
 
 Use this skill when the user needs to inspect or manage objects in cloud object storage such as Amazon S3 or Azure Blob Storage. This skill covers common object storage workflows such as listing content, downloading files, uploading new objects, replacing existing objects, and deleting storage items. It is designed for operations that are centered on object resources rather than relational tables or document records.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow. Use the tools in the correct order to operate on object storage resources.
 
 ## When To Use
 
@@ -51,23 +55,3 @@ The provider-specific payload instructions contain the exact fields and requirem
 ## Example Assets
 
 Example payload files are included to show concrete request shapes for each operation and provider. Review the examples before building a payload so you can confirm the correct field names and minimal required properties. These assets are helpful as templates for both Amazon S3 and Azure Blob Storage requests.
-
-### Amazon S3
-
-The S3 examples demonstrate how to construct valid payloads for each supported method. Each file is intentionally minimal and shows the required fields for that operation.
-
-- [Amazon S3 GET payload](assets/s3/get.json)
-- [Amazon S3 SELECT payload](assets/s3/select.json)
-- [Amazon S3 INSERT payload](assets/s3/insert.json)
-- [Amazon S3 UPDATE payload](assets/s3/update.json)
-- [Amazon S3 DELETE payload](assets/s3/delete.json)
-
-### Azure Blob Storage
-
-The Azure Blob examples illustrate the same operations using Azure-native field names. Use these files when working with containers and blob paths, and compare them to the S3 examples if you need to verify the shared model.
-
-- [Azure Blob GET payload](assets/azure-blob/get.json)
-- [Azure Blob SELECT payload](assets/azure-blob/select.json)
-- [Azure Blob INSERT payload](assets/azure-blob/insert.json)
-- [Azure Blob UPDATE payload](assets/azure-blob/update.json)
-- [Azure Blob DELETE payload](assets/azure-blob/delete.json)

@@ -1,13 +1,15 @@
 ---
 name: data-store-document
-description: 'Use when working with NoSQL data sources, currently MongoDB, to query documents, write documents, inspect collections, or delete data.'
+description: 'ALWAYS load this skill before any MongoDB or NoSQL document operation — even if the query looks simple. Skipping it is a leading cause of failures from wrong method names, missing required fields, and malformed filter payloads. Use when working with NoSQL document data sources, currently MongoDB. Applies to querying, inserting, updating, deleting documents, and inspecting collections. This skill mandates: (1) reading the payload reference before constructing any request so required fields like filter, value, and tableName are set correctly, (2) using the schema tool to discover collection names before querying when they are not already confirmed, (3) routing reads to select and writes to insert/update/delete rather than defaulting everything to mutation, and (4) using listTables for a lightweight collection list instead of a full schema fetch. Co-load with domain skills — they provide context; this skill governs payload structure and routing. They are complementary, not interchangeable.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
+
+**ALWAYS** #tool:read/readFile [MongoDB payload instructions](references/payload-mongo.instructions.md) before using this skill to understand how to properly format the payload for MongoDB operations, including the required and optional fields for different operation types.
 
 # NoSQL
 
 Use this skill when the user needs to work with document-oriented data sources such as MongoDB. Document stores are modeled around collections and JSON-like records rather than relational tables, so query and mutation patterns differ from SQL. This skill focuses on selecting, inserting, updating, and deleting documents while preserving MongoDB-specific payload expectations.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 ## When To Use
 
@@ -30,6 +32,7 @@ These mappings represent the primary CRUD flow for MongoDB-backed sources. Use `
 - Use the #tool:data-store/update tool to update documents (`UPDATE`).
 - Use the #tool:data-store/delete tool to delete documents (`DELETE`).
 - Use the #tool:data-store/mutation tool as a generic dispatcher for `SELECT`, `INSERT`, `UPDATE`, `DELETE`, and `DELETE_TABLE`.
+- Use the #tool:data-store/schema tool to inspect collection/index metadata. Use `payload.listTables: true` for a lightweight collection list, or `payload.tableName` for one collection.
 
 ## NoSQL Payload
 
@@ -39,6 +42,16 @@ This section exists to keep payload details centralized and easier to maintain a
 **ALWAYS** read the payload instructions document at least once before using the NoSQL skill to understand how to properly format the payload for NoSQL operations, including the required and optional fields for different operation types.
 
 - [MongoDB Payload](references/payload-mongo.instructions.md)
+
+### Schema Payload
+
+When using the #tool:data-store/schema tool with MongoDB, the payload can optionally include the following fields:
+
+- `listTables` (boolean): If set to true, the tool returns a list of collection names without index details. This is a lightweight way to discover available collections before requesting full metadata. If `listTables` is true, `tableName` will be ignored.
+- `tableName` (string): If provided, the tool returns metadata for that specific collection. If omitted and `listTables` is not true, it returns metadata for all collections.
+
+- Example with `tableName`: `{"connectionId":"...","payload":{"tableName":"my_collection"}}`
+- Example with `listTables`: `{"connectionId":"...","payload":{"listTables":true}}`
 
 ## Example Assets
 

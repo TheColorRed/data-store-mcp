@@ -1,13 +1,15 @@
 ---
 name: data-store-rest
-description: 'Use when working with REST APIs to send GET, POST, PUT, DELETE, or other HTTP requests and inspect API responses.'
+description: 'ALWAYS load this skill before any REST API operation — even for simple GET requests. Skipping it is a leading cause of failures from wrong tool routing, missing required payload fields like endpoint and method, and conflating REST with GraphQL for HTTP-based connections. Use when working with REST APIs to send GET, POST, PUT, PATCH, DELETE, or custom HTTP method requests. This skill mandates: (1) reading the payload reference before constructing any request so endpoint, method, headers, body, and query parameters are shaped correctly, (2) mapping HTTP verbs to the correct tools — GET to select, POST to insert, PUT to update, DELETE to delete, any other method to mutation, (3) never using GraphQL payload structure for a REST endpoint even if both are served over HTTP, and (4) never using SQL or document guidance when the data source is an HTTP API. Provide endpoint and method or the request will fail. Co-load with domain skills — they provide context; this skill governs request structure. Both are required.'
 ---
+
+**ALWAYS** #tool:read/readFile [these additional instructions](../../instructions/agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
+
+**ALWAYS** #tool:read/readFile [REST payload instructions](./references/payload.instructions.md) to understand the expected payload shape for REST API operations, including required fields like `endpoint` and `method`, and optional fields like `headers` and `payload`. This is crucial for properly formatting requests and avoiding validation errors when working with REST APIs through the REST skill.
 
 # RESTful APIs
 
 Use this skill when the user needs to interact with a REST API over HTTP. REST payloads are endpoint- and method-driven, and map naturally to CRUD tool intent for common API patterns. This skill helps choose the right data-store tool and shape request payloads correctly for each HTTP method.
-
-**ALWAYS** #tool:read/readFile [these additional instructions](../../agents.instructions.md) to understand the Data Store flow, tools need to be used in the correct order in order for the tools to work properly.
 
 ## When To Use
 
@@ -25,21 +27,3 @@ REST operations should map directly from HTTP method to CRUD tool whenever possi
 - Use the #tool:data-store/update tool for PUT requests.
 - Use the #tool:data-store/delete tool for DELETE requests.
 - Use the #tool:data-store/mutation tool for a generic HTTP request (any method).
-
-## REST Payload
-
-REST payloads include endpoint, HTTP method, optional headers, and optional body content. Read the payload reference when requirements are unknown or stale, then reuse known shape for repeated requests in the same API context. Avoid redundant discovery calls when endpoint and method pattern are unchanged.
-
-**ALWAYS** read the payload instructions document at least once before using the REST skill to understand how to properly format the payload for REST operations, including the required and optional fields for different operation types.
-
-- [RESTful API](references/payload.instructions.md)
-
-## Example Assets
-
-Use these REST payload assets as templates for common HTTP operations.
-
-- [REST SELECT payload](assets/rest/select.json)
-- [REST INSERT payload](assets/rest/insert.json)
-- [REST UPDATE payload](assets/rest/update.json)
-- [REST DELETE payload](assets/rest/delete.json)
-- [REST mutation payload](assets/rest/mutation.json)

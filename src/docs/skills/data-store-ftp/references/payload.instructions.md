@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [select.json](../assets/ftp/select.json) to understand the expected payload shape for FTP SELECT operations, including required fields like `path` and optional fields like `maxResults` and `onlyDirectories`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [get.json](../assets/ftp/get.json) to understand the expected payload shape for FTP GET operations, including required fields like `path` and optional fields like `hideBody`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/ftp/insert.json) to understand the expected payload shape for FTP INSERT operations, including required fields like `destinationPath`, `sourceType`, and `sourceValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/ftp/update.json) to understand the expected payload shape for FTP UPDATE operations, including required fields like `destinationPath`, `sourceType`, and `sourceValue`. This is crucial for properly formatting requests and avoiding validation errors.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/ftp/delete.json) to understand the expected payload shape for FTP DELETE operations, including required fields like `path`. This is crucial for properly formatting requests and avoiding validation errors.
+
 # FTP Payload
 
 Use this reference when constructing FTP requests for list, read, upload, overwrite, or delete actions. FTP payloads are method-driven and rely on remote path fields and upload source fields rather than query syntax. This document outlines required fields and method-specific behavior.
@@ -33,13 +43,3 @@ FTP payload errors are often subtle because path-related fields look similar but
 - Omitting `sourceType` or `sourceValue` for `INSERT`/`UPDATE`.
 - Using `raw` for binary content when file-path uploads are more reliable.
 - Re-running payload/schema discovery for repeated FTP operations with unchanged context.
-
-## Example Assets
-
-Use these assets as canonical payload templates for FTP operations. They are easier to version and validate than embedded examples in markdown text. Start from the closest operation and update remote paths, source values, and options as needed.
-
-- [assets/ftp/select.json](../assets/ftp/select.json)
-- [assets/ftp/get.json](../assets/ftp/get.json)
-- [assets/ftp/insert.json](../assets/ftp/insert.json)
-- [assets/ftp/update.json](../assets/ftp/update.json)
-- [assets/ftp/delete.json](../assets/ftp/delete.json)

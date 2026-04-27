@@ -1,3 +1,13 @@
+**ALWAYS** #tool:read/readFile [select.json](../assets/s3/select.json) for how to format a payload for a `SELECT` operation. This example includes all possible fields and serves as a template for constructing valid payloads. Note this is an alias for #tool:data-store/schema when listing objects, and the same payload shape applies to both tools. Use a `delimiter` when you want to group objects by a common prefix, which is especially helpful for navigating folder structures. Otherwise you might get an overwhelming number of results if your bucket contains many objects.
+
+**ALWAYS** #tool:read/readFile [get.json](../assets/s3/get.json) for how to format a payload for a `GET` operation. This example includes all required fields and serves as a template for constructing valid payloads. Try and use `hideBody: true` when you only need metadata to avoid unnecessarily large responses, especially for binary files.
+
+**ALWAYS** #tool:read/readFile [insert.json](../assets/s3/insert.json) for how to format a payload for an `INSERT` operation. This example includes all required fields and serves as a template for constructing valid payloads.
+
+**ALWAYS** #tool:read/readFile [update.json](../assets/s3/update.json) for how to format a payload for an `UPDATE` operation. This example includes all required fields and serves as a template for constructing valid payloads.
+
+**ALWAYS** #tool:read/readFile [delete.json](../assets/s3/delete.json) for how to format a payload for a `DELETE` operation. This example includes all required fields and serves as a template for constructing valid payloads.
+
 # Amazon S3 Payload Instructions
 
 Use these instructions when the user wants to perform object storage operations against an Amazon S3 bucket. The payload shape is intentionally simple but must match the required S3 field names exactly. This reference helps you choose the correct fields for each supported method.
@@ -5,11 +15,17 @@ Use these instructions when the user wants to perform object storage operations 
 The payload is a JSON object that must include a `method` and the fields required for that operation.
 
 - `method` — one of `GET`, `SELECT`, `INSERT`, `UPDATE`, or `DELETE`
+  - `GET` retrieves a single object and its metadata. Use `hideBody: true` to exclude the object body from the response when only metadata is needed, otherwise this can return a large amount of data especially for images or other binary files.
+  - `SELECT` lists objects in a bucket, optionally filtered by a key prefix.
+  - `INSERT` uploads a new object.
+  - `UPDATE` overwrites an existing object.
+  - `DELETE` removes a single object.
 - `bucket` — the S3 bucket name
 - `key` — the object key or prefix within the bucket
 - `sourceType` — `path` or `raw`
 - `sourceValue` — local file path or raw object content for uploads
 - `maxResults` — optional number of objects to list for `SELECT`
+- `hideBody` — optional boolean to hide the body of the response for `SELECT`
 
 ## Field details
 

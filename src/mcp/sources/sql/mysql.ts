@@ -52,7 +52,27 @@ export class MySQL extends SqlDataSource {
   async select(): Promise<any> {
     if (!this.isSelect()) throw new Error(this.getPayloadInvalidValueError('sql'));
     if (!this.payload.sql) throw new Error(this.getPayloadMissingKeyError('sql'));
-    const [rows] = (await this.connection?.query(this.payload.sql, this.payload.params)) ?? [];
+    const baseSql = this.payload.sql.trimEnd().replace(/;$/, '');
+    const { timeout, params } = this.payload;
+
+    if (this.shouldPaginate(baseSql)) {
+      const { pagedSql, countSql, currentPage, pageSize } = this.buildPaginationSql(baseSql);
+      const [[rows], [countRows]] = await Promise.all([
+        typeof timeout === 'number'
+          ? (this.connection?.query({ sql: pagedSql, timeout }, params) ?? Promise.resolve([[]] as any))
+          : (this.connection?.query(pagedSql, params) ?? Promise.resolve([[]] as any)),
+        typeof timeout === 'number'
+          ? (this.connection?.query({ sql: countSql, timeout }, params) ?? Promise.resolve([[]] as any))
+          : (this.connection?.query(countSql, params) ?? Promise.resolve([[]] as any)),
+      ]);
+      const totalRows = Number((countRows as any[])[0]?.total ?? 0);
+      return this.assemblePaginationResult(rows, totalRows, currentPage, pageSize);
+    }
+
+    const [rows] =
+      typeof timeout === 'number'
+        ? ((await this.connection?.query({ sql: baseSql, timeout }, params)) ?? [])
+        : ((await this.connection?.query(baseSql, params)) ?? []);
     return rows;
   }
   /**
@@ -113,6 +133,58 @@ export class MySQL extends SqlDataSource {
    */
   async showSchema(): Promise<any> {
     const tableName = this.payload.tableName;
+    const listTables = this.payload.listTables;
+    const listProcedures = this.payload.listProcedures;
+    const listFunctions = this.payload.listFunctions;
+    const listViews = this.payload.listViews;
+    const listTriggers = this.payload.listTriggers;
+
+    if (listTables || listProcedures || listFunctions || listViews || listTriggers) {
+      const results = await Promise.all([
+        listTables &&
+          this.connection?.query(`
+            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_COMMENT
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA NOT IN('mysql', 'sys', 'information_schema', 'performance_schema')
+          `),
+        listProcedures &&
+          this.connection?.query(`
+            SELECT ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, ROUTINE_COMMENT
+            FROM INFORMATION_SCHEMA.ROUTINES
+            WHERE ROUTINE_TYPE = 'PROCEDURE' AND ROUTINE_SCHEMA NOT IN('mysql', 'sys', 'information_schema', 'performance_schema')
+          `),
+        listFunctions &&
+          this.connection?.query(`
+            SELECT ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, ROUTINE_COMMENT
+            FROM INFORMATION_SCHEMA.ROUTINES
+            WHERE ROUTINE_TYPE = 'FUNCTION' AND ROUTINE_SCHEMA NOT IN('mysql', 'sys', 'information_schema', 'performance_schema')
+          `),
+        listViews &&
+          this.connection?.query(`
+            SELECT TABLE_SCHEMA, TABLE_NAME, VIEW_DEFINITION, CHECK_OPTION, IS_UPDATABLE
+            FROM INFORMATION_SCHEMA.VIEWS
+            WHERE TABLE_SCHEMA NOT IN('mysql', 'sys', 'information_schema', 'performance_schema')
+          `),
+        listTriggers &&
+          this.connection?.query(`
+            SELECT TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_STATEMENT, ACTION_TIMING
+            FROM INFORMATION_SCHEMA.TRIGGERS
+            WHERE TRIGGER_SCHEMA NOT IN('mysql', 'sys', 'information_schema', 'performance_schema')
+          `),
+      ]);
+      return this.buildSchemaResult(
+        results,
+        [
+          [listTables, 'tables'],
+          [listProcedures, 'procedures'],
+          [listFunctions, 'functions'],
+          [listViews, 'views'],
+          [listTriggers, 'triggers'],
+        ],
+        res => res[0],
+      );
+    }
+
     if (tableName) {
       const [rows] = (await this.connection?.query('SHOW CREATE TABLE ??', [tableName])) ?? [];
       return rows;
